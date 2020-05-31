@@ -3,6 +3,7 @@ const path = require('path');
 const util = require('util');
 const readdirProm = util.promisify(fs.readdir);
 const getFileStatsProm = util.promisify(fs.stat);
+const dirCheck = require('./dirChecker.js');
 
 exports.scan = function(parentDirectory, recursive = true, whiteNames = [], blackNames = [], recursionLimit = -1, currentRecursion = 0, originalParent = parentDirectory) {
     //String - Parent Directory: The starting directory for the file search.
@@ -10,6 +11,7 @@ exports.scan = function(parentDirectory, recursive = true, whiteNames = [], blac
     //Array of regex - whiteNames: Whitelisted filenames or extensions, only files that match these names/extensions will be included in the search.
     //Array of regex - blackNames: Blacklisted filenames or extensions, files/extensions on this list will be ignored.
     //Int - recusionLevel: The number of levels to recurr inside of the folder. //defaults to -1 which is infinity.
+    dirCheck.check(parentDirectory);//Check if dir exists, and if not then create it. 
     let whiteFilter = new RegExp(blackNames.join('|'), 'gi');
     let blackFilter = new RegExp(whiteNames.join('|'), 'gi');
     currentRecursion++;
@@ -29,6 +31,7 @@ exports.scan = function(parentDirectory, recursive = true, whiteNames = [], blac
                     originalPath: originalParent,
                     relativePath: parentDirectory.substring(originalParent.length),
                     fileName: fileName,
+                    renamed: '',
                     id: stats.dev,
                     size: stats.size,
                     changeTime: stats.ctimeMs,
