@@ -1,7 +1,7 @@
 const fileIndexer = require('./fileIndexer');
 const fileRanker = require('./fileRanker');
 const fileMerger = require('./fileMerger');
-
+const fileDeleter = require('./fileDeleter.js');
 
 let filesOne = fileIndexer.scan("W:\\OneDrive\\Apps\\0013_FileComparator\\TestFiles\\DuplicateTest\\First");
 let filesTwo = fileIndexer.scan("W:\\OneDrive\\Apps\\0013_FileComparator\\TestFiles\\First");
