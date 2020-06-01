@@ -1,51 +1,63 @@
 <template>
   <div class="listContainer">
+      
       <ul class='fileList list-group'>
-            <li class="list-group-item flex-column align-items-start" @mouseover="$data.selectionContainer.hover = true" @mouseleave="$data.selectionContainer.hover = false" :class="{ 'active': $data.selectionContainer.hover}"> 
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">Directory: {{$data.selectionContainer.title}}</h5> <!-- TODO: Update this thing when a dir selected. -->
-                    <small v-if="$data.selectionContainer.path.length > 0">{{$data[this.storageLocation].length}} files, {{Math.round($data[this.storageLocation].reduce((total, item) => total+item.size, 0)/1000)}} mb</small>
-                </div>
-                <div class="pathContainer mb-1 text-left" v-if="$data.selectionContainer.path.length > 0">
-                    <small>{{$data.selectionContainer.path}}</small>
-                </div>
-                <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': $data.selectionContainer.hover}">
-                    <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': $data.selectionContainer.hover}">
-                        <button type="button" class="btn btn-outline-danger btn-sm" v-on:click="clearSelection()">Clear Selection</button>
-                        <button type="button" class="btn btn-outline-primary btn-sm" v-on:click="selectDir()">Load From Directory</button>
-                        <!-- <button type="button" class="btn btn-outline-danger btn-sm">TBD</button> -->
+            <li class="list-group-item" @mouseover="$data.selectionContainer.hover = true" @mouseleave="$data.selectionContainer.hover = false" :class="{ 'active': $data.selectionContainer.hover}"> 
+                <div class="row align-items-start">
+                    <div class="col-1">
+                        <div class="fiv-sqo fiv-icon-folder fiv-size-md"></div>
+                    </div>
+                    <div class="col-11">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">Directory: {{$data.selectionContainer.title}}</h5>
+                            <small v-if="$data.selectionContainer.path.length > 0">{{$data[this.storageLocation].length}} files, {{fileSizer(Math.round($data[this.storageLocation].reduce((total, item) => total+item.size, 0)/1000))}}</small>
+                        </div>
+                        <div class="pathContainer mb-1 text-left" v-if="$data.selectionContainer.path.length > 0">
+                            <small>{{$data.selectionContainer.path}}</small>
+                        </div>
+                        <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': $data.selectionContainer.hover}">
+                            <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': $data.selectionContainer.hover}">
+                                <button type="button" class="btn btn-outline-danger btn-sm" v-on:click="clearSelection()">Clear Selection</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" v-on:click="selectDir()">Load From Directory</button>
+                                <!-- <button type="button" class="btn btn-outline-danger btn-sm">TBD</button> -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </li>
             <!-- List Divider -->
             <li> 
-                <div style="height:3px; background-color:rgba(19, 20, 79, .3); width:100%" v-if="$data.selectionContainer.path.length > 0"></div>
+                <div style="height:3px; background-color:rgba(19, 20, 79, .4); width:100%" v-if="$data.selectionContainer.path.length > 0"></div>
             </li>
 
             <li v-for="(file, index) in $data[this.storageLocation]" :key="index" class="list-group-item flex-column align-items-start" @mouseover="file.hover = true" @mouseleave="file.hover = false" :class="{ 'active': file.hover, disabled: file.disabled}">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">{{file.fileName}}</h5>
-                        <small>{{file.size}} kb</small>
+                <div class="row align-items-start">
+                    <div class="col-1">
+                        <div class="fiv-sqo" :class="file.icon"></div>
                     </div>
-                    <div class="pathContainer mb-1 text-left">
-                        <small>{{file.path}}</small>
-                    </div>
-                    <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': file.hover}">
-                        <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': file.hover}">
-                            <button type="button" class="btn btn-outline-danger btn-sm">Ignore File</button>
-                            <button type="button" class="btn btn-outline-danger btn-sm">Ignore All .XML</button>
-                            <button type="button" class="btn btn-outline-danger btn-sm">Only Select .XML</button>
+                    <div class="col-11">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">{{file.fileName}}</h5>
+                            <small>{{fileSizer(file.size)}}</small>
+                        </div>
+                        <div class="pathContainer mb-1 text-left">
+                            <small>{{file.path}}</small>
+                        </div>
+                        <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': file.hover}">
+                            <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': file.hover}">
+                                <button type="button" class="btn btn-outline-danger btn-sm">Ignore File</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm">Ignore All {{file.extension}}</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm">Only Select {{file.extension}}</button>
+                            </div>
                         </div>
                     </div>
+                </div>
             </li>
       </ul>
   </div>
 </template>
 
 <script>
-
-
-
 import { ipcRenderer } from 'electron';
 
 export default {
@@ -57,13 +69,22 @@ export default {
                 hover: false,
                 title: 'No Selection',
                 path: ''
-            }
+            },
+            availableIcons: ["3g2","3ga","3gp","7z","aa","aac","ac","accdb","accdt","adn","ai","aif","aifc","aiff","ait","amr","ani","apk","app","applescript","asax","asc","ascx","asf","ash","ashx","asmx","asp","aspx","asx","au","aup","avi","axd","aze","bak","bash","bat","bin","blank","bmp","bowerrc","bpg","browser","bz2","c","cab","cad","caf","cal","cd","cer","cfg","cfm","cfml","cgi","class","cmd","codekit","coffee","coffeelintignore","com","compile","conf","config","cpp","cptx","cr2","crdownload","crt","crypt","cs","csh","cson","csproj","css","csv","cue","dat","db","dbf","deb","dgn","dist","diz","dll","dmg","dng","doc","docb","docm","docx","dot","dotm","dotx","download","dpj","ds_store","dtd","dwg","dxf","editorconfig","el","enc","eot","eps","epub","eslintignore","exe","f4v","fax","fb2","fla","flac","flv","folder","gadget","gdp","gem","gif","gitattributes","gitignore","go","gpg","gz","h","handlebars","hbs","heic","hs","hsl","htm","html","ibooks","icns","ico","ics","idx","iff","ifo","image","img","in","indd","inf","ini","iso","j2","jar","java","jpe","jpeg","jpg","js","json","jsp","jsx","key","kf8","kmk","ksh","kup","less","lex","licx","lisp","lit","lnk","lock","log","lua","m","m2v","m3u","m3u8","m4","m4a","m4r","m4v","map","master","mc","md","mdb","mdf","me","mi","mid","midi","mk","mkv","mm","mo","mobi","mod","mov","mp2","mp3","mp4","mpa","mpd","mpe","mpeg","mpg","mpga","mpp","mpt","msi","msu","nef","nes","nfo","nix","npmignore","odb","ods","odt","ogg","ogv","ost","otf","ott","ova","ovf","p12","p7b","pages","part","pcd","pdb","pdf","pem","pfx","pgp","ph","phar","php","pkg","pl","plist","pm","png","po","pom","pot","potx","pps","ppsx","ppt","pptm","pptx","prop","ps","ps1","psd","psp","pst","pub","py","pyc","qt","ra","ram","rar","raw","rb","rdf","resx","retry","rm","rom","rpm","rsa","rss","rtf","ru","rub","sass","scss","sdf","sed","sh","sitemap","skin","sldm","sldx","sln","sol","sql","sqlite","step","stl","svg","swd","swf","swift","sys","tar","tcsh","tex","tfignore","tga","tgz","tif","tiff","tmp","torrent","ts","tsv","ttf","twig","txt","udf","vb","vbproj","vbs","vcd","vcs","vdi","vdx","vmdk","vob","vscodeignore","vsd","vss","vst","vsx","vtx","war","wav","wbk","webinfo","webm","webp","wma","wmf","wmv","woff","woff2","wps","wsf","xaml","xcf","xlm","xls","xlsm","xlsx","xlt","xltm","xltx","xml","xpi","xps","xrb","xsd","xsl","xspf","xz","yaml","yml","z","zip","zsh"]
         }
     },
     props: {
         storageLocation: String
     },
     methods: {
+        fileSizer: function(bytes, decimals = 1) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        },
         checkDir: function(checkPath) {
             ipcRenderer.send('checkDirEmpty', {parentDirectory: checkPath, id:this.storageLocation})
         },
@@ -85,6 +106,8 @@ export default {
             let updatedFiles = args.result.map(file => {
                 file.hover = false;
                 file.disabled = false;
+                let extension = file.extension.replace('.', '').toLowerCase();
+                file.icon = (this.$data.availableIcons.includes(extension)) ? `fiv-size-md fiv-icon-${extension}` : 'defaultIcon'; //Computer icon for this file.
                 return file;
             });
             this.$data[this.storageLocation] = updatedFiles;
@@ -157,7 +180,7 @@ export default {
         background: #f1f1f1; 
     }
     .list-group{
-        max-height: 80vh;
+        max-height: 85vh;
         margin-bottom: 10px;
         overflow-y:scroll;
         overflow-x: hidden;
@@ -192,6 +215,7 @@ export default {
     }
     .dropDown-Container-Active{
         height:auto;
+        z-index: 2000;
     }
     .dropDown {
         position: relative;
@@ -209,10 +233,19 @@ export default {
         top: 2px;
         height: 40px;
         font-size: 25px;
+        z-index: 2000;
     }
     li.active {
         background-color: rgba(19, 20, 79, .2);
         border-color: rgba(19, 20, 79, .3);
         color: black;
+    }
+    .defaultIcon {
+        background-image: url("data:image/svg+xml,<svg class='bi bi-file-earmark' width='36px' height='36px' viewBox='0 0 16 16' fill='currentColor' xmlns='http://www.w3.org/2000/svg'><path d='M4 1h5v1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6h1v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z'/><path d='M9 4.5V1l5 5h-3.5A1.5 1.5 0 0 1 9 4.5z'/></svg>");
+        background-repeat: no-repeat;
+        background-size: 36px;
+        font-size: 36px;
+        width: 36px;
+        height: 36px;
     }
 </style>

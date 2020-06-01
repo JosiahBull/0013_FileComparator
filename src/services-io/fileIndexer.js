@@ -56,6 +56,7 @@ exports.scan = function(
                 relativePath: parentDirectory.substring(originalParent.length),
                 fileName: fileName,
                 renamed: "",
+                extension: path.extname(fileName),
                 id: stats.dev,
                 size: stats.size,
                 changeTime: stats.ctimeMs,
