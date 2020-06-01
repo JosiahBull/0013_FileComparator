@@ -9,7 +9,7 @@
         <scrollableList storageLocation='listB'></scrollableList>
       </div>
       <div class="col-sm">
-        One of three columns
+        <rankerModule></rankerModule>
       </div>
   <!-- </div> -->
 </div>
@@ -18,11 +18,13 @@
 
 
 <script>
-import scrollableList from "@/components/scrollableList.vue"
+import scrollableList from "@/components/scrollableList.vue";
+import rankerModule from "@/components/rankerModule.vue";
 export default {
 	name: "About",
 	components: {
-		scrollableList
+		scrollableList,
+		rankerModule
 	}
 }
 </script>

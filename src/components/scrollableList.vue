@@ -1,7 +1,6 @@
 <template>
-  <div class="listContainer">
-      
-      <ul class='fileList list-group'>
+    <div class="listContainer">
+        <ul class='fileList list-group'>
             <li class="list-group-item" @mouseover="$data.selectionContainer.hover = true" @mouseleave="$data.selectionContainer.hover = false" :class="{ 'active': $data.selectionContainer.hover}"> 
                 <div class="row align-items-start">
                     <div class="col-1">
@@ -53,8 +52,8 @@
                     </div>
                 </div>
             </li>
-      </ul>
-  </div>
+        </ul>
+    </div>
 </template>
 
 <script>
@@ -124,12 +123,7 @@ export default {
             this.scanDir({
                 parentDirectory: this.$data.selectionContainer.path,
             });
-        },
-        onErr(event, args) { //temp
-            console.log('An error has occured.')
-            console.log(args);
         }
-
     },
     beforeCreate() {
         //Things
@@ -138,15 +132,11 @@ export default {
         ipcRenderer.on('dirScanned', this.onDirScanned);
         ipcRenderer.on('dirChecked', this.onDirChecked);
         ipcRenderer.on('dirSelected', this.onDirSelected);
-        //temp
-        ipcRenderer.on('unknownErr', this.onErr);
     },
     beforeDestroy() {
         ipcRenderer.off('dirScanned', this.onDirScanned);
         ipcRenderer.off('dirChecked', this.onDirChecked);
         ipcRenderer.off('dirSelected', this.onDirSelected);
-        //temp
-        ipcRenderer.off('unknownErr', this.onErr);
     }
 };
 </script>
