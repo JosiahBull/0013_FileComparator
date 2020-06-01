@@ -9,7 +9,7 @@
                     <div class="col-11">
                         <div class="d-flex w-100 justify-content-between">
                             <h5 class="mb-1">Directory: {{$data.selectionContainer.title}}</h5>
-                            <small v-if="$data.selectionContainer.path.length > 0">{{$data[this.storageLocation].length}} files, {{fileSizer(Math.round($data[this.storageLocation].reduce((total, item) => total+item.size, 0)/1000))}}</small>
+                            <small class="sizeIdentifier" v-if="$data.selectionContainer.path.length > 0">{{$data[this.storageLocation].length}} files, {{fileSizer(Math.round($data[this.storageLocation].reduce((total, item) => total+item.size, 0)/1000))}}</small>
                         </div>
                         <div class="pathContainer mb-1 text-left" v-if="$data.selectionContainer.path.length > 0">
                             <small>{{$data.selectionContainer.path}}</small>
@@ -17,8 +17,8 @@
                         <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': $data.selectionContainer.hover}">
                             <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': $data.selectionContainer.hover}">
                                 <button type="button" class="btn btn-outline-danger btn-sm" v-on:click="clearSelection()">Clear Selection</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" v-on:click="clearFilters()">Clear Filters</button>
                                 <button type="button" class="btn btn-outline-primary btn-sm" v-on:click="selectDir()">Load From Directory</button>
-                                <!-- <button type="button" class="btn btn-outline-danger btn-sm">TBD</button> -->
                             </div>
                         </div>
                     </div>
@@ -32,21 +32,21 @@
             <li v-for="(file, index) in $data[this.storageLocation]" :key="index" class="list-group-item flex-column align-items-start" @mouseover="file.hover = true" @mouseleave="file.hover = false" :class="{ 'active': file.hover, disabled: file.disabled}">
                 <div class="row align-items-start">
                     <div class="col-1">
-                        <div class="fiv-sqo" :class="file.icon"></div>
+                        <div class="fiv-sqo" :class="(file.disabled) ? file.icon.small : file.icon.normal"></div>
                     </div>
                     <div class="col-11">
                         <div class="d-flex w-100 justify-content-between">
                             <h5 class="mb-1">{{file.fileName}}</h5>
-                            <small>{{fileSizer(file.size)}}</small>
+                            <small class="sizeIdentifier">{{fileSizer(file.size)}}</small>
                         </div>
-                        <div class="pathContainer mb-1 text-left">
+                        <div class="pathContainer mb-1 text-left" v-if="!file.disabled">
                             <small>{{file.path}}</small>
                         </div>
                         <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': file.hover}">
                             <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': file.hover}">
-                                <button type="button" class="btn btn-outline-danger btn-sm">Ignore File</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm">Ignore All {{file.extension}}</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm">Only Select {{file.extension}}</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" @mousedown="addBlackFile(file.fileName)">Ignore File</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" @mousedown="addBlackExt(file.extension)">Ignore All {{file.extension}}</button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" @mousedown="addWhiteExt(file.extension)">Only Select {{file.extension}}</button>
                             </div>
                         </div>
                     </div>
@@ -64,6 +64,8 @@ export default {
     data: function(){
         return {
             [this.storageLocation] : [],
+            blackFiles: [],
+            whiteFiles: [],
             selectionContainer: {
                 hover: false,
                 title: 'No Selection',
@@ -73,22 +75,56 @@ export default {
         }
     },
     props: {
-        storageLocation: String
+        storageLocation: String,
+        title: {
+            type: String,
+            default: 'Directory Selection'
+        },
     },
     methods: {
         fileSizer: function(bytes, decimals = 1) {
             if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            let k = 1024;
+            let dm = decimals < 0 ? 0 : decimals;
+            let sizes = ['Bytes', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
+            let i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        },
+        clearFilters: function() {
+            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
+                file.disabled = false;
+                return file;
+            });
+        },
+        addBlackExt: function(ext) {
+            let regex = new RegExp(`^.*\.(${ext.replace('.', '').toLowerCase()}|${ext.replace('.', '').toUpperCase()})$`);
+            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
+                if (file.fileName.match(regex)) file.disabled = true;
+                return file;
+            });
+        },
+        addBlackFile: function(file) {
+            let regex = new RegExp(`${file}`);
+            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
+                if (file.fileName.match(regex)) file.disabled = true;
+                return file;
+            });
+        },
+        addWhiteExt: function(ext) {
+            let regex = new RegExp(`^.*\.(${ext.replace('.', '').toLowerCase()}|${ext.replace('.', '').toUpperCase()})$`);
+            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
+                if (!file.fileName.match(regex)) file.disabled = true;
+                return file;
+            });
         },
         checkDir: function(checkPath) {
             ipcRenderer.send('checkDirEmpty', {parentDirectory: checkPath, id:this.storageLocation})
         },
-        scanDir: function(config) {
-            config.id = this.storageLocation;
+        scanDir: function() {
+            let config = {
+                id: this.storageLocation,
+                parentDirectory: this.$data.selectionContainer.path
+            }
             ipcRenderer.send('scanDir', config);
         },
         selectDir: function(title) {
@@ -97,6 +133,8 @@ export default {
         },
         clearSelection: function() {
             this.$data[this.storageLocation] = [];
+            this.$data.blackFiles = [];
+            this.$data.whiteFiles = [];
             this.$data.selectionContainer.title = 'No Selection';
             this.$data.selectionContainer.path = '';
         },
@@ -106,7 +144,10 @@ export default {
                 file.hover = false;
                 file.disabled = false;
                 let extension = file.extension.replace('.', '').toLowerCase();
-                file.icon = (this.$data.availableIcons.includes(extension)) ? `fiv-size-md fiv-icon-${extension}` : 'defaultIcon'; //Computer icon for this file.
+                file.icon = {
+                    normal: (this.$data.availableIcons.includes(extension)) ? `fiv-size-md fiv-icon-${extension}` : 'defaultIcon', //Icon
+                    small:(this.$data.availableIcons.includes(extension)) ? `fiv-size-sm fiv-icon-${extension}` : 'defaultIconSmall' //Smaller Icon
+                }
                 return file;
             });
             this.$data[this.storageLocation] = updatedFiles;
@@ -120,9 +161,7 @@ export default {
             if (args.canceled) return; //Got canceled.
             this.$data.selectionContainer.path = args.filePaths[0];
             this.$data.selectionContainer.title = args.filePaths[0].match(/([^\\\\]*)\\*$/)[1];
-            this.scanDir({
-                parentDirectory: this.$data.selectionContainer.path,
-            });
+            this.scanDir();
         }
     },
     beforeCreate() {
@@ -195,6 +234,12 @@ export default {
         white-space: nowrap;
         text-overflow: ellipsis;
     }
+    .sizeIdentifier{
+        width: 100px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
     .dropDown-Container {
         overflow: hidden;
         height: 0;
@@ -237,5 +282,16 @@ export default {
         font-size: 36px;
         width: 36px;
         height: 36px;
+    }
+    .defaultIconSmall {
+        background-image: url("data:image/svg+xml,<svg class='bi bi-file-earmark' width='36px' height='36px' viewBox='0 0 16 16' fill='currentColor' xmlns='http://www.w3.org/2000/svg'><path d='M4 1h5v1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6h1v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z'/><path d='M9 4.5V1l5 5h-3.5A1.5 1.5 0 0 1 9 4.5z'/></svg>");
+        background-repeat: no-repeat;
+        background-size: 20px;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+    .disabled {
+        cursor: default;
     }
 </style>

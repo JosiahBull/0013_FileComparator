@@ -20,11 +20,23 @@
 <script>
 import scrollableList from "@/components/scrollableList.vue";
 import rankerModule from "@/components/rankerModule.vue";
+import { ipcRenderer } from 'electron';
 export default {
 	name: "About",
 	components: {
 		scrollableList,
 		rankerModule
-	}
+	},
+	methods: {
+		unknownErr: function(event, args) {
+			console.log(`An unknown error has occured: ${args}\n`)
+		}
+	},
+	mounted() {
+        ipcRenderer.on('unknownErr', this.unknownErr);
+    },
+    beforeDestroy() {
+        ipcRenderer.off('unknownErr', this.unknownErr);
+    }
 }
 </script>

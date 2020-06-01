@@ -100,6 +100,7 @@ ipcMain.on('scanDir', (event, args) => {
 		event.reply('dirScanned', {result: result, id: args.id});
 	}).catch(err => {
 		event.reply('unknownErr', err);
+		console.log('err')
 	})
 });
 //Takes two arrays of files and copies them from their original locations to an output dir.
