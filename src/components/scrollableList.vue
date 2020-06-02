@@ -1,297 +1,774 @@
 <template>
-    <div class="listContainer">
-        <ul class='fileList list-group'>
-            <li class="list-group-item" @mouseover="$data.selectionContainer.hover = true" @mouseleave="$data.selectionContainer.hover = false" :class="{ 'active': $data.selectionContainer.hover}"> 
-                <div class="row align-items-start">
-                    <div class="col-1">
-                        <div class="fiv-sqo fiv-icon-folder fiv-size-md"></div>
-                    </div>
-                    <div class="col-11">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">Directory: {{$data.selectionContainer.title}}</h5>
-                            <small class="sizeIdentifier" v-if="$data.selectionContainer.path.length > 0">{{$data[this.storageLocation].length}} files, {{fileSizer(Math.round($data[this.storageLocation].reduce((total, item) => total+item.size, 0)/1000))}}</small>
-                        </div>
-                        <div class="pathContainer mb-1 text-left" v-if="$data.selectionContainer.path.length > 0">
-                            <small>{{$data.selectionContainer.path}}</small>
-                        </div>
-                        <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': $data.selectionContainer.hover}">
-                            <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': $data.selectionContainer.hover}">
-                                <button type="button" class="btn btn-outline-danger btn-sm" v-on:click="clearSelection()">Clear Selection</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" v-on:click="clearFilters()">Clear Filters</button>
-                                <button type="button" class="btn btn-outline-primary btn-sm" v-on:click="selectDir()">Load From Directory</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </li>
-            <!-- List Divider -->
-            <li> 
-                <div style="height:3px; background-color:rgba(19, 20, 79, .4); width:100%" v-if="$data.selectionContainer.path.length > 0"></div>
-            </li>
+<!-- TODO: Implement web workers to offload processing of list 'updates' when changes are being made when the user excludes an extension or something. -->
+<!-- TODO: Change item buttons to appear on top of each element rather than slide out from underneath || have the slideout not impact the height of the element (somehow), thereby not causing a scroll of all elements and resulting lag -->
+  <div class="listContainer">
+    <ul class="fileList list-group">
+      <li
+        class="list-group-item"
+        @mouseover="$data.selectionContainer.hover = true"
+        @mouseleave="$data.selectionContainer.hover = false"
+        :class="{ active: $data.selectionContainer.hover }"
+      >
+        <div class="row align-items-start">
+          <div class="col-1">
+            <div class="fiv-sqo fiv-icon-folder fiv-size-md"></div>
+          </div>
+          <div class="col-11">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">
+                Directory: {{ $data.selectionContainer.title }}
+              </h5>
+              <small
+                class="sizeIdentifier"
+                v-if="$data.selectionContainer.path.length > 0"
+                >{{ $data[this.storageLocation].length }} files,
+                {{
+                  fileSizer(
+                    Math.round(
+                      $data[this.storageLocation].reduce(
+                        (total, item) => total + item.size,
+                        0
+                      ) / 1000
+                    )
+                  )
+                }}</small
+              >
+            </div>
+            <div
+              class="pathContainer mb-1 text-left"
+              v-if="$data.selectionContainer.path.length > 0"
+            >
+              <small>{{ $data.selectionContainer.path }}</small>
+            </div>
+            <div
+              class="dropDown-Container"
+              v-bind:class="{
+                'dropDown-Container-Active': $data.selectionContainer.hover
+              }"
+            >
+              <div
+                class="d-flex w-100 justify-content-between dropDown"
+                v-bind:class="{
+                  dropdownActive: $data.selectionContainer.hover
+                }"
+              >
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  v-on:click="clearSelection()"
+                >
+                  Clear Selection
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  v-on:click="clearFilters()"
+                >
+                  Clear Filters
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-primary btn-sm"
+                  v-on:click="selectDir()"
+                >
+                  Load From Directory
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+      <!-- List Divider -->
+      <li>
+        <div
+          style="height:3px; background-color:rgba(19, 20, 79, .4); width:100%"
+          v-if="$data.selectionContainer.path.length > 0"
+        ></div>
+      </li>
 
-            <li v-for="(file, index) in $data[this.storageLocation]" :key="index" class="list-group-item flex-column align-items-start" @mouseover="file.hover = true" @mouseleave="file.hover = false" :class="{ 'active': file.hover, disabled: file.disabled}">
-                <div class="row align-items-start">
-                    <div class="col-1">
-                        <div class="fiv-sqo" :class="(file.disabled) ? file.icon.small : file.icon.normal"></div>
-                    </div>
-                    <div class="col-11">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">{{file.fileName}}</h5>
-                            <small class="sizeIdentifier">{{fileSizer(file.size)}}</small>
-                        </div>
-                        <div class="pathContainer mb-1 text-left" v-if="!file.disabled">
-                            <small>{{file.path}}</small>
-                        </div>
-                        <div class="dropDown-Container" v-bind:class="{'dropDown-Container-Active': file.hover}">
-                            <div class="d-flex w-100 justify-content-between dropDown" v-bind:class="{'dropdownActive': file.hover}">
-                                <button type="button" class="btn btn-outline-danger btn-sm" @mousedown="addBlackFile(file.fileName)">Ignore File</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" @mousedown="addBlackExt(file.extension)">Ignore All {{file.extension}}</button>
-                                <button type="button" class="btn btn-outline-danger btn-sm" @mousedown="addWhiteExt(file.extension)">Only Select {{file.extension}}</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </li>
-        </ul>
-    </div>
+      <li
+        v-for="(file, index) in $data[this.storageLocation]"
+        :key="index"
+        class="list-group-item flex-column align-items-start"
+        @mouseover="file.hover = true"
+        @mouseleave="file.hover = false"
+        :class="{ active: file.hover, disabled: file.disabled }"
+      >
+        <div class="row align-items-start">
+          <div class="col-1">
+            <div
+              class="fiv-sqo"
+              :class="file.disabled ? file.icon.small : file.icon.normal"
+            ></div>
+          </div>
+          <div class="col-11">
+            <div class="d-flex w-100 justify-content-between">
+              <h5 class="mb-1">{{ file.fileName }}</h5>
+              <small class="sizeIdentifier">{{ fileSizer(file.size) }}</small>
+            </div>
+            <div class="pathContainer mb-1 text-left" v-if="!file.disabled">
+              <small>{{ file.path }}</small>
+            </div>
+            <div
+              class="dropDown-Container"
+              v-bind:class="{ 'dropDown-Container-Active': file.hover }"
+            >
+              <div
+                class="d-flex w-100 justify-content-between dropDown"
+                v-bind:class="{ dropdownActive: file.hover }"
+              >
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  @mousedown="addBlackFile(file.fileName)"
+                >
+                  Ignore File
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  @mousedown="addBlackExt(file.extension)"
+                >
+                  Ignore All {{ file.extension }}
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  @mousedown="addWhiteExt(file.extension)"
+                >
+                  Only Select {{ file.extension }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <script>
-import { ipcRenderer } from 'electron';
+import { ipcRenderer } from "electron";
 
 export default {
-    name: "scrollableList",
-    data: function(){
-        return {
-            [this.storageLocation] : [],
-            blackFiles: [],
-            whiteFiles: [],
-            selectionContainer: {
-                hover: false,
-                title: 'No Selection',
-                path: ''
-            },
-            availableIcons: ["3g2","3ga","3gp","7z","aa","aac","ac","accdb","accdt","adn","ai","aif","aifc","aiff","ait","amr","ani","apk","app","applescript","asax","asc","ascx","asf","ash","ashx","asmx","asp","aspx","asx","au","aup","avi","axd","aze","bak","bash","bat","bin","blank","bmp","bowerrc","bpg","browser","bz2","c","cab","cad","caf","cal","cd","cer","cfg","cfm","cfml","cgi","class","cmd","codekit","coffee","coffeelintignore","com","compile","conf","config","cpp","cptx","cr2","crdownload","crt","crypt","cs","csh","cson","csproj","css","csv","cue","dat","db","dbf","deb","dgn","dist","diz","dll","dmg","dng","doc","docb","docm","docx","dot","dotm","dotx","download","dpj","ds_store","dtd","dwg","dxf","editorconfig","el","enc","eot","eps","epub","eslintignore","exe","f4v","fax","fb2","fla","flac","flv","folder","gadget","gdp","gem","gif","gitattributes","gitignore","go","gpg","gz","h","handlebars","hbs","heic","hs","hsl","htm","html","ibooks","icns","ico","ics","idx","iff","ifo","image","img","in","indd","inf","ini","iso","j2","jar","java","jpe","jpeg","jpg","js","json","jsp","jsx","key","kf8","kmk","ksh","kup","less","lex","licx","lisp","lit","lnk","lock","log","lua","m","m2v","m3u","m3u8","m4","m4a","m4r","m4v","map","master","mc","md","mdb","mdf","me","mi","mid","midi","mk","mkv","mm","mo","mobi","mod","mov","mp2","mp3","mp4","mpa","mpd","mpe","mpeg","mpg","mpga","mpp","mpt","msi","msu","nef","nes","nfo","nix","npmignore","odb","ods","odt","ogg","ogv","ost","otf","ott","ova","ovf","p12","p7b","pages","part","pcd","pdb","pdf","pem","pfx","pgp","ph","phar","php","pkg","pl","plist","pm","png","po","pom","pot","potx","pps","ppsx","ppt","pptm","pptx","prop","ps","ps1","psd","psp","pst","pub","py","pyc","qt","ra","ram","rar","raw","rb","rdf","resx","retry","rm","rom","rpm","rsa","rss","rtf","ru","rub","sass","scss","sdf","sed","sh","sitemap","skin","sldm","sldx","sln","sol","sql","sqlite","step","stl","svg","swd","swf","swift","sys","tar","tcsh","tex","tfignore","tga","tgz","tif","tiff","tmp","torrent","ts","tsv","ttf","twig","txt","udf","vb","vbproj","vbs","vcd","vcs","vdi","vdx","vmdk","vob","vscodeignore","vsd","vss","vst","vsx","vtx","war","wav","wbk","webinfo","webm","webp","wma","wmf","wmv","woff","woff2","wps","wsf","xaml","xcf","xlm","xls","xlsm","xlsx","xlt","xltm","xltx","xml","xpi","xps","xrb","xsd","xsl","xspf","xz","yaml","yml","z","zip","zsh"]
-        }
-    },
-    props: {
-        storageLocation: String,
-        title: {
-            type: String,
-            default: 'Directory Selection'
-        },
-    },
-    methods: {
-        fileSizer: function(bytes, decimals = 1) {
-            if (bytes === 0) return '0 Bytes';
-            let k = 1024;
-            let dm = decimals < 0 ? 0 : decimals;
-            let sizes = ['Bytes', 'kb', 'mb', 'gb', 'tb', 'pb', 'eb', 'zb', 'yb'];
-            let i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-        },
-        clearFilters: function() {
-            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
-                file.disabled = false;
-                return file;
-            });
-        },
-        addBlackExt: function(ext) {
-            let regex = new RegExp(`^.*\.(${ext.replace('.', '').toLowerCase()}|${ext.replace('.', '').toUpperCase()})$`);
-            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
-                if (file.fileName.match(regex)) file.disabled = true;
-                return file;
-            });
-        },
-        addBlackFile: function(file) {
-            let regex = new RegExp(`${file}`);
-            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
-                if (file.fileName.match(regex)) file.disabled = true;
-                return file;
-            });
-        },
-        addWhiteExt: function(ext) {
-            let regex = new RegExp(`^.*\.(${ext.replace('.', '').toLowerCase()}|${ext.replace('.', '').toUpperCase()})$`);
-            this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
-                if (!file.fileName.match(regex)) file.disabled = true;
-                return file;
-            });
-        },
-        checkDir: function(checkPath) {
-            ipcRenderer.send('checkDirEmpty', {parentDirectory: checkPath, id:this.storageLocation})
-        },
-        scanDir: function() {
-            let config = {
-                id: this.storageLocation,
-                parentDirectory: this.$data.selectionContainer.path
-            }
-            ipcRenderer.send('scanDir', config);
-        },
-        selectDir: function(title) {
-            if (title === undefined) title = 'Select a directory to load: '
-            ipcRenderer.send('selectDir', {title: title, id: this.storageLocation});
-        },
-        clearSelection: function() {
-            this.$data[this.storageLocation] = [];
-            this.$data.blackFiles = [];
-            this.$data.whiteFiles = [];
-            this.$data.selectionContainer.title = 'No Selection';
-            this.$data.selectionContainer.path = '';
-        },
-        onDirScanned(event, args) {
-            if (args.id !== this.storageLocation) return; //Not for us.
-            let updatedFiles = args.result.map(file => {
-                file.hover = false;
-                file.disabled = false;
-                let extension = file.extension.replace('.', '').toLowerCase();
-                file.icon = {
-                    normal: (this.$data.availableIcons.includes(extension)) ? `fiv-size-md fiv-icon-${extension}` : 'defaultIcon', //Icon
-                    small:(this.$data.availableIcons.includes(extension)) ? `fiv-size-sm fiv-icon-${extension}` : 'defaultIconSmall' //Smaller Icon
-                }
-                return file;
-            });
-            this.$data[this.storageLocation] = updatedFiles;
-        },
-        onDirChecked(event, args) {
-            if (args.id !== this.storageLocation) return; //Not for us.
-            console.log(args);
-        },
-        onDirSelected(event, args) {
-            if (args.id !== this.storageLocation) return; //Not for us.
-            if (args.canceled) return; //Got canceled.
-            this.$data.selectionContainer.path = args.filePaths[0];
-            this.$data.selectionContainer.title = args.filePaths[0].match(/([^\\\\]*)\\*$/)[1];
-            this.scanDir();
-        }
-    },
-    beforeCreate() {
-        //Things
-    },
-    mounted() {
-        ipcRenderer.on('dirScanned', this.onDirScanned);
-        ipcRenderer.on('dirChecked', this.onDirChecked);
-        ipcRenderer.on('dirSelected', this.onDirSelected);
-    },
-    beforeDestroy() {
-        ipcRenderer.off('dirScanned', this.onDirScanned);
-        ipcRenderer.off('dirChecked', this.onDirChecked);
-        ipcRenderer.off('dirSelected', this.onDirSelected);
+  name: "scrollableList",
+  data: function() {
+    return {
+      [this.storageLocation]: [],
+      blackFiles: [],
+      whiteFiles: [],
+      selectionContainer: {
+        hover: false,
+        title: "No Selection",
+        path: ""
+      },
+      availableIcons: [
+        "3g2",
+        "3ga",
+        "3gp",
+        "7z",
+        "aa",
+        "aac",
+        "ac",
+        "accdb",
+        "accdt",
+        "adn",
+        "ai",
+        "aif",
+        "aifc",
+        "aiff",
+        "ait",
+        "amr",
+        "ani",
+        "apk",
+        "app",
+        "applescript",
+        "asax",
+        "asc",
+        "ascx",
+        "asf",
+        "ash",
+        "ashx",
+        "asmx",
+        "asp",
+        "aspx",
+        "asx",
+        "au",
+        "aup",
+        "avi",
+        "axd",
+        "aze",
+        "bak",
+        "bash",
+        "bat",
+        "bin",
+        "blank",
+        "bmp",
+        "bowerrc",
+        "bpg",
+        "browser",
+        "bz2",
+        "c",
+        "cab",
+        "cad",
+        "caf",
+        "cal",
+        "cd",
+        "cer",
+        "cfg",
+        "cfm",
+        "cfml",
+        "cgi",
+        "class",
+        "cmd",
+        "codekit",
+        "coffee",
+        "coffeelintignore",
+        "com",
+        "compile",
+        "conf",
+        "config",
+        "cpp",
+        "cptx",
+        "cr2",
+        "crdownload",
+        "crt",
+        "crypt",
+        "cs",
+        "csh",
+        "cson",
+        "csproj",
+        "css",
+        "csv",
+        "cue",
+        "dat",
+        "db",
+        "dbf",
+        "deb",
+        "dgn",
+        "dist",
+        "diz",
+        "dll",
+        "dmg",
+        "dng",
+        "doc",
+        "docb",
+        "docm",
+        "docx",
+        "dot",
+        "dotm",
+        "dotx",
+        "download",
+        "dpj",
+        "ds_store",
+        "dtd",
+        "dwg",
+        "dxf",
+        "editorconfig",
+        "el",
+        "enc",
+        "eot",
+        "eps",
+        "epub",
+        "eslintignore",
+        "exe",
+        "f4v",
+        "fax",
+        "fb2",
+        "fla",
+        "flac",
+        "flv",
+        "folder",
+        "gadget",
+        "gdp",
+        "gem",
+        "gif",
+        "gitattributes",
+        "gitignore",
+        "go",
+        "gpg",
+        "gz",
+        "h",
+        "handlebars",
+        "hbs",
+        "heic",
+        "hs",
+        "hsl",
+        "htm",
+        "html",
+        "ibooks",
+        "icns",
+        "ico",
+        "ics",
+        "idx",
+        "iff",
+        "ifo",
+        "image",
+        "img",
+        "in",
+        "indd",
+        "inf",
+        "ini",
+        "iso",
+        "j2",
+        "jar",
+        "java",
+        "jpe",
+        "jpeg",
+        "jpg",
+        "js",
+        "json",
+        "jsp",
+        "jsx",
+        "key",
+        "kf8",
+        "kmk",
+        "ksh",
+        "kup",
+        "less",
+        "lex",
+        "licx",
+        "lisp",
+        "lit",
+        "lnk",
+        "lock",
+        "log",
+        "lua",
+        "m",
+        "m2v",
+        "m3u",
+        "m3u8",
+        "m4",
+        "m4a",
+        "m4r",
+        "m4v",
+        "map",
+        "master",
+        "mc",
+        "md",
+        "mdb",
+        "mdf",
+        "me",
+        "mi",
+        "mid",
+        "midi",
+        "mk",
+        "mkv",
+        "mm",
+        "mo",
+        "mobi",
+        "mod",
+        "mov",
+        "mp2",
+        "mp3",
+        "mp4",
+        "mpa",
+        "mpd",
+        "mpe",
+        "mpeg",
+        "mpg",
+        "mpga",
+        "mpp",
+        "mpt",
+        "msi",
+        "msu",
+        "nef",
+        "nes",
+        "nfo",
+        "nix",
+        "npmignore",
+        "odb",
+        "ods",
+        "odt",
+        "ogg",
+        "ogv",
+        "ost",
+        "otf",
+        "ott",
+        "ova",
+        "ovf",
+        "p12",
+        "p7b",
+        "pages",
+        "part",
+        "pcd",
+        "pdb",
+        "pdf",
+        "pem",
+        "pfx",
+        "pgp",
+        "ph",
+        "phar",
+        "php",
+        "pkg",
+        "pl",
+        "plist",
+        "pm",
+        "png",
+        "po",
+        "pom",
+        "pot",
+        "potx",
+        "pps",
+        "ppsx",
+        "ppt",
+        "pptm",
+        "pptx",
+        "prop",
+        "ps",
+        "ps1",
+        "psd",
+        "psp",
+        "pst",
+        "pub",
+        "py",
+        "pyc",
+        "qt",
+        "ra",
+        "ram",
+        "rar",
+        "raw",
+        "rb",
+        "rdf",
+        "resx",
+        "retry",
+        "rm",
+        "rom",
+        "rpm",
+        "rsa",
+        "rss",
+        "rtf",
+        "ru",
+        "rub",
+        "sass",
+        "scss",
+        "sdf",
+        "sed",
+        "sh",
+        "sitemap",
+        "skin",
+        "sldm",
+        "sldx",
+        "sln",
+        "sol",
+        "sql",
+        "sqlite",
+        "step",
+        "stl",
+        "svg",
+        "swd",
+        "swf",
+        "swift",
+        "sys",
+        "tar",
+        "tcsh",
+        "tex",
+        "tfignore",
+        "tga",
+        "tgz",
+        "tif",
+        "tiff",
+        "tmp",
+        "torrent",
+        "ts",
+        "tsv",
+        "ttf",
+        "twig",
+        "txt",
+        "udf",
+        "vb",
+        "vbproj",
+        "vbs",
+        "vcd",
+        "vcs",
+        "vdi",
+        "vdx",
+        "vmdk",
+        "vob",
+        "vscodeignore",
+        "vsd",
+        "vss",
+        "vst",
+        "vsx",
+        "vtx",
+        "war",
+        "wav",
+        "wbk",
+        "webinfo",
+        "webm",
+        "webp",
+        "wma",
+        "wmf",
+        "wmv",
+        "woff",
+        "woff2",
+        "wps",
+        "wsf",
+        "xaml",
+        "xcf",
+        "xlm",
+        "xls",
+        "xlsm",
+        "xlsx",
+        "xlt",
+        "xltm",
+        "xltx",
+        "xml",
+        "xpi",
+        "xps",
+        "xrb",
+        "xsd",
+        "xsl",
+        "xspf",
+        "xz",
+        "yaml",
+        "yml",
+        "z",
+        "zip",
+        "zsh"
+      ]
+    };
+  },
+  props: {
+    storageLocation: String,
+    title: {
+      type: String,
+      default: "Directory Selection"
     }
+  },
+  methods: {
+    fileSizer: function(bytes, decimals = 1) {
+      if (bytes === 0) return "0 Bytes";
+      let k = 1024;
+      let dm = decimals < 0 ? 0 : decimals;
+      let sizes = ["Bytes", "kb", "mb", "gb", "tb", "pb", "eb", "zb", "yb"];
+      let i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+    },
+    clearFilters: function() {
+      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
+        file => {
+          file.disabled = false;
+          return file;
+        }
+      );
+    },
+    addBlackExt: function(ext) {
+      let regex = new RegExp(
+        `^.*\.(${ext.replace(".", "").toLowerCase()}|${ext
+          .replace(".", "")
+          .toUpperCase()})$`
+      );
+      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
+        file => {
+          if (file.fileName.match(regex)) file.disabled = true;
+          return file;
+        }
+      );
+    },
+    addBlackFile: function(file) {
+      let regex = new RegExp(`${file}`);
+      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
+        file => {
+          if (file.fileName.match(regex)) file.disabled = true;
+          return file;
+        }
+      );
+    },
+    addWhiteExt: function(ext) {
+      let regex = new RegExp(
+        `^.*\.(${ext.replace(".", "").toLowerCase()}|${ext
+          .replace(".", "")
+          .toUpperCase()})$`
+      );
+      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
+        file => {
+          if (!file.fileName.match(regex)) file.disabled = true;
+          return file;
+        }
+      );
+    },
+    checkDir: function(checkPath) {
+      ipcRenderer.send("checkDirEmpty", {
+        parentDirectory: checkPath,
+        id: this.storageLocation
+      });
+    },
+    scanDir: function() {
+      let config = {
+        id: this.storageLocation,
+        parentDirectory: this.$data.selectionContainer.path
+      };
+      ipcRenderer.send("scanDir", config);
+    },
+    selectDir: function(title) {
+      if (title === undefined) title = "Select a directory to load: ";
+      ipcRenderer.send("selectDir", { title: title, id: this.storageLocation });
+    },
+    clearSelection: function() {
+      this.$data[this.storageLocation] = [];
+      this.$data.blackFiles = [];
+      this.$data.whiteFiles = [];
+      this.$data.selectionContainer.title = "No Selection";
+      this.$data.selectionContainer.path = "";
+    },
+    onDirScanned(event, args) {
+      if (args.id !== this.storageLocation) return; //Not for us.
+      let updatedFiles = args.result.map(file => {
+        file.hover = false;
+        file.disabled = false;
+        let extension = file.extension.replace(".", "").toLowerCase();
+        file.icon = {
+          normal: this.$data.availableIcons.includes(extension)
+            ? `fiv-size-md fiv-icon-${extension}`
+            : "defaultIcon", //Icon
+          small: this.$data.availableIcons.includes(extension)
+            ? `fiv-size-sm fiv-icon-${extension}`
+            : "defaultIconSmall" //Smaller Icon
+        };
+        return file;
+      });
+      this.$data[this.storageLocation] = updatedFiles;
+    },
+    onDirChecked(event, args) {
+      if (args.id !== this.storageLocation) return; //Not for us.
+      console.log(args);
+    },
+    onDirSelected(event, args) {
+      if (args.id !== this.storageLocation) return; //Not for us.
+      if (args.canceled) return; //Got canceled.
+      this.$data.selectionContainer.path = args.filePaths[0];
+      this.$data.selectionContainer.title = args.filePaths[0].match(
+        /([^\\\\]*)\\*$/
+      )[1];
+      this.scanDir();
+    }
+  },
+  beforeCreate() {
+    //Things
+  },
+  mounted() {
+    ipcRenderer.on("dirScanned", this.onDirScanned);
+    ipcRenderer.on("dirChecked", this.onDirChecked);
+    ipcRenderer.on("dirSelected", this.onDirSelected);
+  },
+  beforeDestroy() {
+    ipcRenderer.off("dirScanned", this.onDirScanned);
+    ipcRenderer.off("dirChecked", this.onDirChecked);
+    ipcRenderer.off("dirSelected", this.onDirSelected);
+  }
 };
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped lang="scss">
-    h3 {
-        margin: 40px 0 0;
-    }
-    ul {
-        list-style-type: none;
-        padding: 0;
-    }
-    li {
-        display: inline-block;
-        margin: 0 10px;
-    }
-    a {
-        color: #42b983;
-    }
-    ::-webkit-scrollbar {
-        width: 12px;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: #888; 
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
-    ::-webkit-scrollbar-track {
-        background: #f1f1f1; 
-    }
-    .list-group{
-        max-height: 85vh;
-        margin-bottom: 10px;
-        overflow-y:scroll;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-    .titleContainer{
-        width: 200px;   
-        // padding: 3px;
-        // height: 1em;
-        overflow: hidden;
-        position: relative;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    .pathContainer{
-        width: 500px;   
-        // margin: 0;
-        // padding: 3px;
-        // height: 1em;
-        overflow: hidden;
-        position: relative;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    .sizeIdentifier{
-        width: 100px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-    .dropDown-Container {
-        overflow: hidden;
-        height: 0;
-        z-index: -2;
-        position: relative;
-        margin: 0, auto;
-        padding-bottom: 5px;
-    }
-    .dropDown-Container-Active{
-        height:auto;
-        z-index: 2000;
-    }
-    .dropDown {
-        position: relative;
-        z-index: -1;
-        height: 0px;
-        font-size: 0px;
-        margin: 0 auto;
-        width: 92%;
-        /* top: 80%; */
-        top: -60px;
-        transition: top 1s, height 1s, font-size 1s;
-        border-radius: 7px;
-    }
-    .dropdownActive {
-        top: 2px;
-        height: 40px;
-        font-size: 25px;
-        z-index: 2000;
-    }
-    li.active {
-        background-color: rgba(19, 20, 79, .2);
-        border-color: rgba(19, 20, 79, .3);
-        color: black;
-    }
-    .defaultIcon {
-        background-image: url("data:image/svg+xml,<svg class='bi bi-file-earmark' width='36px' height='36px' viewBox='0 0 16 16' fill='currentColor' xmlns='http://www.w3.org/2000/svg'><path d='M4 1h5v1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6h1v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z'/><path d='M9 4.5V1l5 5h-3.5A1.5 1.5 0 0 1 9 4.5z'/></svg>");
-        background-repeat: no-repeat;
-        background-size: 36px;
-        font-size: 36px;
-        width: 36px;
-        height: 36px;
-    }
-    .defaultIconSmall {
-        background-image: url("data:image/svg+xml,<svg class='bi bi-file-earmark' width='36px' height='36px' viewBox='0 0 16 16' fill='currentColor' xmlns='http://www.w3.org/2000/svg'><path d='M4 1h5v1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6h1v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z'/><path d='M9 4.5V1l5 5h-3.5A1.5 1.5 0 0 1 9 4.5z'/></svg>");
-        background-repeat: no-repeat;
-        background-size: 20px;
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-    }
-    .disabled {
-        cursor: default;
-    }
+h3 {
+  margin: 40px 0 0;
+}
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+li {
+  display: inline-block;
+  margin: 0 10px;
+}
+a {
+  color: #42b983;
+}
+::-webkit-scrollbar {
+  width: 12px;
+}
+::-webkit-scrollbar-thumb {
+  background: #888;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+.list-group {
+  max-height: 85vh;
+  margin-bottom: 10px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.titleContainer {
+  width: 200px;
+  // padding: 3px;
+  // height: 1em;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.pathContainer {
+  width: 500px;
+  // margin: 0;
+  // padding: 3px;
+  // height: 1em;
+  overflow: hidden;
+  position: relative;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.sizeIdentifier {
+  white-space: nowrap;
+}
+.dropDown-Container {
+  overflow: hidden;
+  height: 0;
+  z-index: -2;
+  position: relative;
+  margin: 0, auto;
+  padding-bottom: 5px;
+}
+.dropDown-Container-Active {
+  height: auto;
+  z-index: 2000;
+}
+.dropDown {
+  position: relative;
+  z-index: -1;
+  height: 0px;
+  font-size: 0px;
+  margin: 0 auto;
+  width: 92%;
+  /* top: 80%; */
+  top: -60px;
+  transition: top 1s, height 1s, font-size 1s;
+  border-radius: 7px;
+}
+.dropdownActive {
+  top: 2px;
+  height: 40px;
+  font-size: 25px;
+  z-index: 2000;
+}
+li.active {
+  background-color: rgba(19, 20, 79, 0.2);
+  border-color: rgba(19, 20, 79, 0.3);
+  color: black;
+}
+.defaultIcon {
+  background-image: url("data:image/svg+xml,<svg class='bi bi-file-earmark' width='36px' height='36px' viewBox='0 0 16 16' fill='currentColor' xmlns='http://www.w3.org/2000/svg'><path d='M4 1h5v1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6h1v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z'/><path d='M9 4.5V1l5 5h-3.5A1.5 1.5 0 0 1 9 4.5z'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 36px;
+  font-size: 36px;
+  width: 36px;
+  height: 36px;
+}
+.defaultIconSmall {
+  background-image: url("data:image/svg+xml,<svg class='bi bi-file-earmark' width='36px' height='36px' viewBox='0 0 16 16' fill='currentColor' xmlns='http://www.w3.org/2000/svg'><path d='M4 1h5v1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V6h1v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z'/><path d='M9 4.5V1l5 5h-3.5A1.5 1.5 0 0 1 9 4.5z'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 20px;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+.disabled {
+  cursor: default;
+}
 </style>

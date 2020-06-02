@@ -1,0 +1,36 @@
+{
+    "productName": "EndFile",
+    "appId": "com.jobull.EndFile",
+    "buildVersion": "1.0.0",
+    "asar": true,
+    "copyright": "Copyright © 2020 Josiah Bull",
+    "protocols": {
+      "name": "EndFile",
+      "schemes": [
+        "EndFile"
+      ]
+    },
+    "mac": {
+      "target": [
+        "default"
+      ]
+    },
+    "win": {
+      "target": [
+        "portable",
+        "msi",
+        "nsis",
+        "squirrel"
+      ],
+      "icon": "/public/favicon.ico",
+      "publisherName": "Josiah Bull"
+    },
+    "files" : [
+        "**/*",
+        "public/favicon.ico"
+    ],
+    "portable": {
+      "artifactName": "EndFile.exe"
+    },
+    "extends": null
+}
