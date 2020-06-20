@@ -5,69 +5,101 @@ const readdirProm = util.promisify(fs.readdir);
 const getFileStatsProm = util.promisify(fs.stat);
 const dirCheck = require("./dirChecker.js");
 
-exports.scan = function(
-  parentDirectory,
-  recursive = true,
-  whiteNames = [],
-  blackNames = [],
-  recursionLimit = -1,
-  currentRecursion = 0,
-  originalParent = parentDirectory
-) {
-  //String - Parent Directory: The starting directory for the file search.
-  //Bool - recusive: Whether or not to search subfolders. //Defaults to true.
-  //Array of regex - whiteNames: Whitelisted filenames or extensions, only files that match these names/extensions will be included in the search.
-  //Array of regex - blackNames: Blacklisted filenames or extensions, files/extensions on this list will be ignored.
-  //Int - recusionLevel: The number of levels to recurr inside of the folder. //defaults to -1 which is infinity.
-  dirCheck.check(parentDirectory); //Check if dir exists, and if not then create it.
-  let whiteFilter = new RegExp(blackNames.join("|"), "gi");
-  let blackFilter = new RegExp(whiteNames.join("|"), "gi");
-  currentRecursion++;
-  return readdirProm(parentDirectory)
-    .then(fileNames => {
-      return fileNames
-        .map(fileName => {
-          if (whiteNames.length > 0 && !fileName.test(whiteFilter)) return; //If whitelist is enabled, and it fails, kick the file/folder.
-          if (blackNames.length > 0 && fileName.test(blackFilter)) return; //If blacklist is enabled, and it fails, kick the file/folder.
-          if (
-            fs.lstatSync(path.join(parentDirectory, fileName)).isDirectory() &&
-            recursive
-          ) {
-            //If it's a directory deal with that stuff.
-            //If recursion is enabled and we're looking at file then do that ig.
-            if (currentRecursion++ > recursionLimit && recursionLimit !== -1)
-              return;
-            return this.scan(
-              path.join(parentDirectory, fileName),
-              recursive,
-              whiteNames,
-              blackNames,
-              recursionLimit,
-              currentRecursion,
-              originalParent
-            );
-          }
-          //If we reach here we have a valid file which should be added.
-          return getFileStatsProm(path.join(parentDirectory, fileName)).then(
-            stats => {
-              return {
-                path: parentDirectory,
-                originalPath: originalParent,
-                relativePath: parentDirectory.substring(originalParent.length),
-                fileName: fileName,
-                renamed: "",
-                extension: path.extname(fileName),
-                id: stats.dev,
-                size: stats.size,
-                changeTime: stats.ctimeMs,
-                accessTime: stats.atimeMs,
-                creationTime: stats.birthtimeMs
-              };
-            }
-          );
-        })
-        .filter(x => x !== undefined);
-    })
-    .then(resultPromises => Promise.all(resultPromises))
-    .then(paths => paths.flat());
+function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err){
+	this.directory = directory;
+	this.recursive = recursive;
+	this.whiteNames = whiteNames;
+	this.blackNames = blackNames;
+	this.whiteFilter = new RegExp(this.blackNames.join('|'), 'gi');
+	this.blackFilter = new RegExp(this.whiteNames.join('|'), 'gi');
+	this.recursionLimit = recursionLimit;
+	this.currentRecursion = currentRecursion++;
+	this.topParent = topParent;
+	this.addQueue = addQueue;
+	this.notifyCompletion = notifyCompletion;
+	this.err = err;
+	this.process = () => {
+		return readdirProm(this.directory).then(fileNames => {
+			return fileNames.map(fileName => {
+				if (this.whiteNames.length > 0 && !fileName.test(this.whiteFilter)) return; //If whitelist is enabled and it fails, ignore the file/folder that we found.
+				if (this.blackNames.length > 0  && fileName.test(this.blackFilter)) return; //If blacklist is enabled and it fails, ignore the file/folder.
+				if (fs.lstatSync(path.join(this.directory, fileName)).isDirectory() && this.recursive) {
+					//If dir then add an item to be scanned.
+					if (recursionLimit++ >= recursionLimit && recursionLimit !== -1) return; //If we are approaching the recursion limit then don't continue to recurse.
+					this.addQueue(path.join(this.directory, fileName), this.recursive, this.whiteNames, this.blackNames, this.recursionLimit, this.currentRecursion, this.topParent, this.notifyCompletion, this.addQueue, this.err);
+					return; //Done with this item.
+				};
+				//If we get to here we have a valid file that has been scanned.
+				return getFileStatsProm(path.join(this.directory, fileName)).then(stats => {
+					return {
+						path: this.directory,
+						originalPath: this.topParent,
+						relativePath: this.directory.substring(this.topParent.length),
+						fileName: fileName,
+						renamed: "",
+						extension: path.extname(fileName),
+						id: stats.dev,
+						size: stats.size,
+						changeTime: stats.ctimeMs,
+						accessTime: stats.atimeMs,
+						creationTime: stats.birthtimeMs
+					};
+				});
+			}).filter(x => x !== undefined); //Remove directory entries that got nuked.
+		}).then(promises => Promise.all(promises)) //Resolve them before spitting out a result.
+		.then(result => {
+			this.result = result;
+			this.notifyCompletion(this);
+		}).catch(err => {
+			this.err(err);
+		});
+	};
+	return this;
+}
+
+function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [], recursionLimit = -1, currentRecursion = -1, originalParent = parentDirectory) {
+	return new Promise((res, rej) => {
+		let queue = [];
+		let resultFile = [];
+		let maxConcurrentScanners = 20; //Arbitrary limit.
+		let currentScanners = 0;
+		let scannedCount = 0;
+		let processFromQueue = () => {
+			if (queue.length === 0 && currentScanners === 0) {
+				//Processing finished.
+				res(resultFile);
+			}
+			queue = queue.filter(batch => {
+				if (currentScanners < maxConcurrentScanners) {
+					batch.process();
+					currentScanners++;
+					return false;
+				}
+				return true;
+			});
+		}
+		let notifyCompletion = (batch) => {
+			if (batch.result.length > 0) {
+				resultFile = [...resultFile, ...batch.result];
+			}
+			currentScanners--;
+			scannedCount++;
+			processFromQueue();
+		}
+		let addQueue = (directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err) => {
+			let batch = new Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err);
+			queue.push(batch);
+			processFromQueue();
+		}
+		//String - Parent Directory: The starting directory for the file search.
+		//Bool - recusive: Whether or not to search subfolders. //Defaults to true.
+		//Array of regex - whiteNames: Whitelisted filenames or extensions, only files that match these names/extensions will be included in the search.
+		//Array of regex - blackNames: Blacklisted filenames or extensions, files/extensions on this list will be ignored.
+		//Int - recusionLevel: The number of levels to recurr inside of the folder. //defaults to -1 which is infinity.
+		dirCheck.check(parentDirectory); //Check if dir exists, and if not then create it.
+		//Start scan
+		addQueue(parentDirectory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, originalParent, notifyCompletion, addQueue, rej);
+	});
 };
+
+exports.scan = scan;

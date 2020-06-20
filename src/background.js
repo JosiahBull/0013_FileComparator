@@ -106,13 +106,7 @@ ipcMain.on("checkDirEmpty", (event, args) => {
 ipcMain.on("scanDir", (event, args) => {
   console.log("Scanning dir");
   fileIndexer
-    .scan(
-      args.parentDirectory,
-      args.recursive,
-      args.whiteNames,
-      args.blackNames,
-      args.recursionLimit
-    )
+    .scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit)
     .then(result => {
       event.reply("dirScanned", { result: result, id: args.id });
     })
@@ -204,3 +198,4 @@ if (isDevelopment) {
 //Consider using fast-glob to increase the speed of directory traversal: https://github.com/mrmlnc/fast-glob
 //More relevant info: https://stackoverflow.com/questions/35769834/nodejs-scanning-a-directory-tree-is-slow-as-hell
 //TODO: Consider using fs-extra to simplify things quite a lot: https://github.com/jprichardson/node-fs-extra#walk
+//TODO use vuex for storage and processing of data & components.
