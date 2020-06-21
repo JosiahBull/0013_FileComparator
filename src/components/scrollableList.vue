@@ -597,6 +597,7 @@ export default {
     scanDir: function() {
       let config = {
         id: this.storageLocation,
+        dbID: this.storageLocation + '_no_edit',
         parentDirectory: this.$data.selectionContainer.path
       };
       ipcRenderer.send("scanDir", config);

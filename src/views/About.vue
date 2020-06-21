@@ -3,10 +3,10 @@
     <!-- <div class="container"> -->
     <div class="row">
       <div class="col-sm">
-        <scrollableList storageLocation="listA"></scrollableList>
+        <scrollableList storageLocation="ListA"></scrollableList>
       </div>
       <div class="col-sm">
-        <scrollableList storageLocation="listB"></scrollableList>
+        <scrollableList storageLocation="ListB"></scrollableList>
       </div>
       <div class="col-sm">
         <rankerModule></rankerModule>

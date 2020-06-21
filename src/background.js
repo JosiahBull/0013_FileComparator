@@ -11,7 +11,15 @@ const dirChecker = require("./services-io/dirChecker.js");
 // const fileDeleter = require('./services-io/fileDeleter.js');
 const fileMerger = require("./services-io/fileMerger.js");
 const fileRanker = require("./services-io/fileRanker.js");
+const database = require('./services-io/database.js').Database();
 const path = require("path");
+
+database.createTables().then(result => {
+  console.log('Database succesfully initialised.')
+}).catch(err => {
+  console.log('Database error occured.')
+  console.log(err)
+});
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -58,6 +66,7 @@ app.on("window-all-closed", () => {
   // On macOS it is common for applications and their menu bar
   // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== "darwin") {
+    database.close();
     app.quit();
   }
 });
@@ -106,13 +115,14 @@ ipcMain.on("checkDirEmpty", (event, args) => {
 ipcMain.on("scanDir", (event, args) => {
   console.log("Scanning dir");
   fileIndexer
-    .scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit)
+    .scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit, database.addFile, args.dbID)
     .then(result => {
       event.reply("dirScanned", { result: result, id: args.id });
     })
     .catch(err => {
-      event.reply("unknownErr", err);
+      event.reply("unknownErr", JSON.stringify(err));
       console.log("err");
+      console.log(err);
     });
 });
 //Takes two arrays of files and copies them from their original locations to an output dir.

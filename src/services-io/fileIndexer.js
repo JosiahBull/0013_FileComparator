@@ -4,9 +4,12 @@ const util = require("util");
 const readdirProm = util.promisify(fs.readdir);
 const getFileStatsProm = util.promisify(fs.stat);
 const dirCheck = require("./dirChecker.js");
+let counter = 0;
 
-function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err){
+function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err, dbPushFunc, dbId){
 	this.directory = directory;
+	this.dbPushFunc = dbPushFunc;
+	this.dbId = dbId;
 	this.recursive = recursive;
 	this.whiteNames = whiteNames;
 	this.blackNames = blackNames;
@@ -26,24 +29,26 @@ function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, cur
 				if (fs.lstatSync(path.join(this.directory, fileName)).isDirectory() && this.recursive) {
 					//If dir then add an item to be scanned.
 					if (recursionLimit++ >= recursionLimit && recursionLimit !== -1) return; //If we are approaching the recursion limit then don't continue to recurse.
-					this.addQueue(path.join(this.directory, fileName), this.recursive, this.whiteNames, this.blackNames, this.recursionLimit, this.currentRecursion, this.topParent, this.notifyCompletion, this.addQueue, this.err);
+					this.addQueue(path.join(this.directory, fileName), this.recursive, this.whiteNames, this.blackNames, this.recursionLimit, this.currentRecursion, this.topParent, this.notifyCompletion, this.addQueue, this.err, this.dbPushFunc, this.dbId);
 					return; //Done with this item.
 				};
 				//If we get to here we have a valid file that has been scanned.
 				return getFileStatsProm(path.join(this.directory, fileName)).then(stats => {
-					return {
+					let fileObj = {
 						path: this.directory,
 						originalPath: this.topParent,
 						relativePath: this.directory.substring(this.topParent.length),
 						fileName: fileName,
 						renamed: "",
 						extension: path.extname(fileName),
-						id: stats.dev,
+						id: counter++,
 						size: stats.size,
 						changeTime: stats.ctimeMs,
 						accessTime: stats.atimeMs,
 						creationTime: stats.birthtimeMs
 					};
+					this.dbPushFunc(fileObj, this.dbId);
+					return fileObj;
 				});
 			}).filter(x => x !== undefined); //Remove directory entries that got nuked.
 		}).then(promises => Promise.all(promises)) //Resolve them before spitting out a result.
@@ -57,7 +62,8 @@ function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, cur
 	return this;
 }
 
-function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [], recursionLimit = -1, currentRecursion = -1, originalParent = parentDirectory) {
+function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [], recursionLimit = -1, dbPushFunc = function(){}, dbId = function(){}) {
+	let currentRecursion = -1;
 	return new Promise((res, rej) => {
 		let queue = [];
 		let resultFile = [];
@@ -86,8 +92,8 @@ function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [
 			scannedCount++;
 			processFromQueue();
 		}
-		let addQueue = (directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err) => {
-			let batch = new Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err);
+		let addQueue = (directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err, dbPushFunc, dbId) => {
+			let batch = new Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err, dbPushFunc, dbId);
 			queue.push(batch);
 			processFromQueue();
 		}
@@ -98,7 +104,7 @@ function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [
 		//Int - recusionLevel: The number of levels to recurr inside of the folder. //defaults to -1 which is infinity.
 		dirCheck.check(parentDirectory); //Check if dir exists, and if not then create it.
 		//Start scan
-		addQueue(parentDirectory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, originalParent, notifyCompletion, addQueue, rej);
+		addQueue(parentDirectory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, parentDirectory, notifyCompletion, addQueue, rej, dbPushFunc, dbId);
 	});
 };
 
