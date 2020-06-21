@@ -14,12 +14,14 @@ const fileRanker = require("./services-io/fileRanker.js");
 const database = require('./services-io/database.js').Database();
 const path = require("path");
 
-database.createTables().then(result => {
-  console.log('Database succesfully initialised.')
-}).catch(err => {
+database.createTables()
+.then(() => console.log('Database succesfully initialised.'))
+.then(() => database.clearTables())
+.then(() => console.log('Database succesfully cleared.'))
+.catch(err => {
   console.log('Database error occured.')
   console.log(err)
-});
+})
 
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
@@ -111,16 +113,53 @@ ipcMain.on("checkDirEmpty", (event, args) => {
       event.reply("unknownErr", err);
     });
 });
+ipcMain.on('getFiles', (event, args) => {
+	//Args: id, dbID, start index, num items to collect.
+	database.getItems(args.dbID, args.count, args.offset).then(res => {
+		event.reply('filesCollected', {result: res, id: args.id})
+	}).catch(err => {
+		console.log(err);
+		event.reply('unkownErr', err);
+	})
+});
+ipcMain.on('writeFiles', (event, args) => {
+	let files = args.files;
+	if (!Array.isArray(files)) files = [files];
+	Promise.resolve(files.map(file => {
+		database.addFile(file, args.dbID)
+	})).then(() => {
+		event.reply('filesWritten', {id: args.id});
+	}).catch(err => {
+		console.log(err);
+		console.reply('unknownErr', err);
+	})
+});
+ipcMain.on('clearFiles', (event, args) => {
+	//We're going to need the dbId and that shoudl be id.
+	database.clearTables(args.dbID).then(() => {
+		event.reply('tableCleared', {id: args.id})
+	}).catch(err => {
+		console.log(err);
+		event.reply('unknownErr', err);
+	})
+});
 //Takes parent directory (and other options) and returns a list of all files and paths in that dir.
 ipcMain.on("scanDir", (event, args) => {
   console.log("Scanning dir");
+  let databaseInfo, databaseItems;
   fileIndexer
-    .scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit, database.addFile, args.dbID)
+	.scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit, database.addFile, args.dbID)
+	.then(() => {
+		//Previous function loaded results into db. We are now going to request the first 100 items from the db and send them to the ui.
+		databaseInfo = database.getInfo(args.dbID); //Get stats from db.
+		databaseItems = database.getItems(args.dbID, 100); //Get first 100 items from db for list init.
+		return Promise.all([databaseInfo, databaseItems]);
+	})
     .then(result => {
-      event.reply("dirScanned", { result: result, id: args.id });
+	  event.reply("dirScanned", { size: result[0].sizeSum, count: result[0].count, result: result[1], id: args.id });
     })
     .catch(err => {
-      event.reply("unknownErr", JSON.stringify(err));
+      event.reply("unknownErr", err);
       console.log("err");
       console.log(err);
     });

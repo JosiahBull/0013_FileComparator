@@ -50,10 +50,10 @@ function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, cur
 					this.dbPushFunc(fileObj, this.dbId);
 					return fileObj;
 				});
-			}).filter(x => x !== undefined); //Remove directory entries that got nuked.
+			})//.filter(x => x !== undefined); //Remove directory entries that got nuked.
 		}).then(promises => Promise.all(promises)) //Resolve them before spitting out a result.
-		.then(result => {
-			this.result = result;
+		.then(() => {
+			// this.result = result;
 			this.notifyCompletion(this);
 		}).catch(err => {
 			this.err(err);
@@ -66,14 +66,14 @@ function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [
 	let currentRecursion = -1;
 	return new Promise((res, rej) => {
 		let queue = [];
-		let resultFile = [];
-		let maxConcurrentScanners = 20; //Arbitrary limit.
+		// let resultFile = [];
+		let maxConcurrentScanners = 100; //Arbitrary limit.
 		let currentScanners = 0;
 		let scannedCount = 0;
 		let processFromQueue = () => {
 			if (queue.length === 0 && currentScanners === 0) {
 				//Processing finished.
-				res(resultFile);
+				res();
 			}
 			queue = queue.filter(batch => {
 				if (currentScanners < maxConcurrentScanners) {
@@ -85,9 +85,9 @@ function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [
 			});
 		}
 		let notifyCompletion = (batch) => {
-			if (batch.result.length > 0) {
-				resultFile = [...resultFile, ...batch.result];
-			}
+			// if (batch.result.length > 0) {
+			// 	resultFile = [...resultFile, ...batch.result];
+			// }
 			currentScanners--;
 			scannedCount++;
 			processFromQueue();

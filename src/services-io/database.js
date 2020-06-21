@@ -1,4 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
+const util = require('util');
 //The goal of this file is to create and manage a databse of files for the program to scan and edit.
 //We are going to want to hold six tables.
 //Table 1 - List of files in directory one (uneditted)
@@ -13,70 +14,21 @@ const sqlite3 = require('sqlite3').verbose();
 
 function Database() {
     let db = new sqlite3.Database('./src/services-io/db/fileStore.db');
-    this.currentAccessId = '';
-    this.checkTables = () => { //Check that tables exist.
-
-    }
-
-    this.createTables = () => { //Create the tables.
-        return new Promise((res, rej) => {
-            let count = 0;
-            function checkCount() {
-                if (count === 6) res();
-            }
-            let tables = ['ListA_no_edit', 'ListA_edit', 'ListB_no_edit', 'ListB_edit', 'List_C'];
-            tables.forEach(table => {
-                db.run(`CREATE TABLE IF NOT EXISTS ${table} (
-                    id INTEGER PRIMARY KEY,
-                    path TEXT NOT NULL,
-                    originalPath TEXT NOT NULL,
-                    relativePath TEXT NOT NULL,
-                    fileName TEXT NOT NULL,
-                    renamed TEXT,
-                    extension TEXT,
-                    size INTEGER NOT NULL,
-                    changeTime INTEGER,
-                    accessTime INTEGER,
-                    creationTime INTERGER
-                );`, [], (err) => {
-                    if (err) rej(err);
-                    count++;
-                    checkCount();
-                });
-            });
-            db.run(`CREATE TABLE IF NOT EXISTS config (
-                placeHolder TEXT
-            );`, [], (err) => {
-                if (err) rej(err);
-                count++;
-                checkCount();
-            })
-        })
-    }
+    let dbRun = util.promisify(db.run.bind(db));
+    this.tables = ['ListA_no_edit', 'ListA_edit', 'ListB_no_edit', 'ListB_edit', 'List_C'];
     
-    this.clearTables = (table) => { //Clear the specified table.
+    this.createTables = () => dbRun(this.tables.reduce((prev, current) => prev + `CREATE TABLE IF NOT EXISTS ${current} (id INTEGER PRIMARY KEY, path TEXT NOT NULL, originalPath TEXT NOT NULL, relativePath TEXT NOT NULL, fileName TEXT NOT NULL, renamed TEXT, extension TEXT, size INTEGER NOT NULL, changeTime INTEGER, accessTime INTEGER, creationTime INTERGER); `, '') + `CREATE TABLE IF NOT EXISTS config (placeHolder TEXT)`);
 
+    this.clearTables = (table) => { //Clear the specified table(s).
+        if (!table) table = this.tables; //If null then clear all tables.
+        if (!Array.isArray(table)) table = [table]; //Ensure is array, even if only single id provided.
+        return dbRun(table.reduce((prev, current) => prev + `delete from ${current}; `, ''));
     }
 
-    this.addFile = (fileObj, tableId) => {
-        let table = (tableId) ? tableId : this.currentAccessId;
-        //Note: NO checks are being carried out on the validity of the file.
-        return new Promise((res, rej) => {
-            db.run(`INSERT INTO ${table} VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [fileObj.id, fileObj.path, fileObj.originalPath, fileObj.relativePath, fileObj.fileName, fileObj.renamed, fileObj.extension, fileObj.size, fileObj.changeTime, fileObj.accessTime, fileObj.creationTime], (err) => {
-                if (err) rej(err);
-                res();
-            })
-        });
-    }
-
-    this.get = (table) => {
-        //Get vals from specified table.
-
-    }
-
-    this.close = () => {
-        db.close();
-    }
+    this.addFile = (fileObj, table) => dbRun(`INSERT INTO ${table} VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [fileObj.id, fileObj.path, fileObj.originalPath, fileObj.relativePath, fileObj.fileName, fileObj.renamed, fileObj.extension, fileObj.size, fileObj.changeTime, fileObj.accessTime, fileObj.creationTime]);
+    this.getItems = (table, itemCount = 500, offset = 0) => util.promisify(db.all.bind(db))(`SELECT * FROM ${table} LIMIT ${itemCount} OFFSET ${offset}`); //Get first x items from table.
+    this.getInfo = (table) => util.promisify(db.get.bind(db))(`SELECT SUM(size) as sizeSum, COUNT(*) as count FROM ${table}`); //Get info (size and count) of specified table.
+    this.close = () => db.close();
     return this;
 }
 

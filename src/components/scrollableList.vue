@@ -21,16 +21,9 @@
               <small
                 class="sizeIdentifier"
                 v-if="$data.selectionContainer.path.length > 0"
-                >{{ $data[this.storageLocation].length }} files,
+                >{{ this.$data.fileCount }} files,
                 {{
-                  fileSizer(
-                    Math.round(
-                      $data[this.storageLocation].reduce(
-                        (total, item) => total + item.size,
-                        0
-                      ) / 1000
-                    )
-                  )
+                  fileSizer(this.$data.fileSize)
                 }}</small
               >
             </div>
@@ -143,6 +136,17 @@
           </div>
         </div>
       </li>
+            <!-- List Divider -->
+      <li>
+        <div
+          style="height:3px; background-color:rgba(19, 20, 79, .4); width:100%"
+          v-if="$data.selectionContainer.path.length > 0"
+        ></div>
+      </li>
+
+      <!-- Load more items Button -->
+      <!-- TODO -->
+
     </ul>
   </div>
 </template>
@@ -629,6 +633,8 @@ export default {
         };
         return file;
       });
+      this.$data.fileCount = args.count;
+      this.$data.fileSize = args.size;
       this.$data[this.storageLocation] = updatedFiles;
     },
     onDirChecked(event, args) {
