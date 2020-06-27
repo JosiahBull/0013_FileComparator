@@ -27,11 +27,16 @@
                 }}</small
               >
             </div>
+            
+            <!-- <div class="pathContainer mb-1 text-left" v-if="!file.disabled">
+              <small><p class="pathLimit">{{ file.path }}</p></small>
+            </div> -->
+
             <div
               class="pathContainer mb-1 text-left"
               v-if="$data.selectionContainer.path.length > 0"
             >
-              <small>{{ $data.selectionContainer.path }}</small>
+              <small><p class="pathLimit">{{ $data.selectionContainer.path }}</p> </small>
             </div>
             <div
               class="dropDown-Container"
@@ -750,7 +755,7 @@ a {
   max-width: 88%;
 }
 .pathContainer {
-  width: 500px;
+  width: 100%;
   // margin: 0;
   // padding: 3px;
   // height: 1em;
@@ -765,7 +770,7 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80%;
+  max-width: 100%;
 }
 .sizeIdentifier {
   white-space: nowrap;
