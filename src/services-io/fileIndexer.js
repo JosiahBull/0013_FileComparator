@@ -3,7 +3,10 @@ const path = require("path");
 const util = require("util");
 const readdirProm = util.promisify(fs.readdir);
 const getFileStatsProm = util.promisify(fs.stat);
+const lsStatProm = util.promisify(fs.lstat);
 const dirCheck = require("./dirChecker.js");
+const database = require('./database.js').Database();
+
 
 let d = new Date();
 let counter = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
@@ -25,10 +28,11 @@ function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, cur
 	this.err = err;
 	this.process = () => {
 		return readdirProm(this.directory).then(fileNames => {
-			return fileNames.map(fileName => {
+			return fileNames.map(async fileName => {
 				if (this.whiteNames.length > 0 && !fileName.test(this.whiteFilter)) return; //If whitelist is enabled and it fails, ignore the file/folder that we found.
 				if (this.blackNames.length > 0  && fileName.test(this.blackFilter)) return; //If blacklist is enabled and it fails, ignore the file/folder.
-				if (fs.lstatSync(path.join(this.directory, fileName)).isDirectory() && this.recursive) {
+				let dirCheck = await lsStatProm(path.join(this.directory, fileName));
+				if (dirCheck.isDirectory() && this.recursive) {
 					//If dir then add an item to be scanned.
 					if (recursionLimit++ >= recursionLimit && recursionLimit !== -1) return; //If we are approaching the recursion limit then don't continue to recurse.
 					this.addQueue(path.join(this.directory, fileName), this.recursive, this.whiteNames, this.blackNames, this.recursionLimit, this.currentRecursion, this.topParent, this.notifyCompletion, this.addQueue, this.err, this.dbPushFunc, this.dbId);
@@ -50,7 +54,7 @@ function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, cur
 						creationTime: stats.birthtimeMs
 					};
 					this.dbPushFunc(fileObj, this.dbId);
-					return fileObj;
+					// return fileObj;
 				});
 			})//.filter(x => x !== undefined); //Remove directory entries that got nuked.
 		}).then(promises => Promise.all(promises)) //Resolve them before spitting out a result.
@@ -64,12 +68,13 @@ function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, cur
 	return this;
 }
 
-function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [], recursionLimit = -1, dbPushFunc = function(){}, dbId = function(){}) {
+function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [], recursionLimit = -1, dbId = '') {
 	let currentRecursion = -1;
+	let dbPushFunc = database.addFile;
 	return new Promise((res, rej) => {
 		let queue = [];
 		// let resultFile = [];
-		let maxConcurrentScanners = 100; //Arbitrary limit.
+		let maxConcurrentScanners = 200; //Arbitrary limit.
 		let currentScanners = 0;
 		let scannedCount = 0;
 		let processFromQueue = () => {
@@ -110,4 +115,11 @@ function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [
 	});
 };
 
-exports.scan = scan;
+module.exports = (input, callback) => {
+	let { parentDirectory, recursive, whiteNames, blackNames, recursionLimit, dbId } = input;
+	scan(parentDirectory, recursive, whiteNames, blackNames, recursionLimit, dbId).then(result => {
+		callback(null, dbId); //Callback with the dbId once completed.
+	}).catch(err => {
+		callback(err, dbId); //Callback even if error.
+	})
+};

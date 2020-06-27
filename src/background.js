@@ -6,13 +6,14 @@ import {
   /* installVueDevtools */
 } from "vue-cli-plugin-electron-builder/lib";
 const isDevelopment = process.env.NODE_ENV !== "production";
-const fileIndexer = require("./services-io/fileIndexer.js");
-const dirChecker = require("./services-io/dirChecker.js");
 // const fileDeleter = require('./services-io/fileDeleter.js');
 const fileMerger = require("./services-io/fileMerger.js");
 const fileRanker = require("./services-io/fileRanker.js");
 const database = require('./services-io/database.js').Database();
 const path = require("path");
+const workerFarm = require('worker-farm');
+
+const fileIndexer = workerFarm('C:\\Users\\Josiah Bull\\OneDrive\\Apps\\0013_FileComparator\\src\\services-io\\fileIndexer.js');
 
 database.createTables()
 .then(() => console.log('Database succesfully initialised.'))
@@ -101,18 +102,6 @@ app.on("ready", async () => {
   createWindow();
 });
 
-//Takes args.checkPath, and returns a true/false bool on whether the directory is empty.
-ipcMain.on("checkDirEmpty", (event, args) => {
-  console.log("Checking dir");
-  fileIndexer
-    .scan(args.parentDirectory)
-    .then(result => {
-      event.reply("dirChecked", { result: result > 0, id: args.id });
-    })
-    .catch(err => {
-      event.reply("unknownErr", err);
-    });
-});
 ipcMain.on('getFiles', (event, args) => { //Get files from database
   //Args: id, dbID, start index, num items to collect.
   console.log('Getting files')
@@ -146,25 +135,32 @@ ipcMain.on('clearFiles', (event, args) => {
 });
 //Takes parent directory (and other options) and returns a list of all files and paths in that dir.
 ipcMain.on("scanDir", (event, args) => {
-  console.log("Scanning dir");
-  let databaseInfo, databaseItems;
-  database.clearTables(args.dbID);
-  fileIndexer
-	.scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit, database.addFile, args.dbID)
-	.then(() => {
-		//Previous function loaded results into db. We are now going to request the first 100 items from the db and send them to the ui.
-		databaseInfo = database.getInfo(args.dbID); //Get stats from db.
-		databaseItems = database.getItems(args.dbID, 100); //Get first 100 items from db for list init.
-		return Promise.all([databaseInfo, databaseItems]);
-	})
-    .then(result => {
-	  event.reply("dirScanned", { size: result[0].sizeSum, count: result[0].count, result: result[1], id: args.id });
-    })
-    .catch(err => {
-      event.reply("unknownErr", err);
-      console.log("err");
-      console.log(err);
-    });
+  	console.log("Scanning dir");
+  	let databaseInfo, databaseItems;
+  	database.clearTables(args.dbID);
+	fileIndexer({
+		parentDirectory: args.parentDirectory,
+		recursive: args.recursive,
+		whiteNames: args.whiteNames,
+		blackNames: args.blackNames,
+		recursionLimit: args.recursionLimit,
+		dbId: args.dbID
+	}, async (err, result) => {
+		console.log('Successful scan.')
+		if (err) {
+			event.reply('unknownErr', err);
+			return;
+		};
+		databaseInfo = await database.getInfo(args.dbID); //Get stats from db.
+		databaseItems = await database.getItems(args.dbID, 100); //Get first 100 items from db for list init.
+		console.log('Replying, yay.')
+		event.reply('dirScanned', {
+			size: databaseInfo.sizeSum,
+			count: databaseInfo.count,
+			result: databaseItems,
+			id: args.id
+		});
+	});
 });
 
 let createMasterRegex = (regexArray = []) => new RegExp(regexArray.reduce((result, current) => result += `(${current.source})|`, '').slice(0, -1), 'gi');
