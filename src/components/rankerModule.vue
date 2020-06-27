@@ -43,7 +43,7 @@
         <div class="container">
           <div class="row">
             <div class="col-11">
-              <div class="d-flex w-100 justify-content-between">
+              <div class="d-inline-flex flex-row w-100 justify-content-between">
                 <h5 class="mb-1 nowrap">{{ rankSlot.title }}</h5>
                 <small class="text-right limitTextBox">{{
                   rankSlot.description

@@ -36,12 +36,12 @@ function createWindow() {
   // Create the browser window.
   win = new BrowserWindow({
     useContentSize: true,
-    width: 1500,
+    width: 1400,
     height: 800,
     title: "EndFile",
     icon: path.join(__dirname, "/assets/logo.ico"),
-    minHeight: 600,
-    minWidth: 1480,
+    minHeight: 800,
+    minWidth: 1365,
     webPreferences: {
       nodeIntegration: true,
       enableRemoteModule: true
