@@ -24,7 +24,7 @@ function Database() {
         return dbRun(table.reduce((prev, current) => prev + `delete from ${current}; `, ''));
     }
     this.addFile = (fileObj, table) => dbRun(`INSERT INTO ${table} VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [fileObj.id, fileObj.path, fileObj.originalPath, fileObj.relativePath, fileObj.fileName, fileObj.renamed, fileObj.extension, fileObj.size, fileObj.changeTime, fileObj.accessTime, fileObj.creationTime]);
-    this.getItems = (table, itemCount, offset) => util.promisify(db.all.bind(db))(`SELECT * FROM ${table}${(itemCount) ? ' LIMIT ' + itemCount : ''}${(offset) ? ' OFFSET' + offset : ''}`); //Get first x items from table
+    this.getItems = (table, itemCount, offset) => util.promisify(db.all.bind(db))(`SELECT * FROM ${table}${(itemCount) ? ' LIMIT ' + itemCount : ''}${(offset) ? ' OFFSET ' + offset : ''}`); //Get first x items from table
     this.getInfo = (table) => util.promisify(db.get.bind(db))(`SELECT SUM(size) as sizeSum, COUNT(*) as count FROM ${table}`); //Get info (size and count) of specified table.
     this.close = () => db.close();
     return this;

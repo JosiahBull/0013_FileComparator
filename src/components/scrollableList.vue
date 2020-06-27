@@ -1,8 +1,8 @@
 <template>
 <!-- TODO: Implement web workers to offload processing of list 'updates' when changes are being made when the user excludes an extension or something. -->
 <!-- TODO: Change item buttons to appear on top of each element rather than slide out from underneath || have the slideout not impact the height of the element (somehow), thereby not causing a scroll of all elements and resulting lag -->
-  <div class="listContainer">
-    <ul class="fileList list-group">
+  <div>
+    <ul class="list-group">
       <li
         class="list-group-item"
         @mouseover="$data.selectionContainer.hover = true"
@@ -96,11 +96,11 @@
           </div>
           <div class="col-11">
             <div class="d-flex w-100 justify-content-between">
-              <h5 class="mb-1">{{ file.fileName }}</h5>
+              <h5 class="mb-1 titleLimit">{{ file.fileName }}</h5>
               <small class="sizeIdentifier">{{ fileSizer(file.size) }}</small>
             </div>
             <div class="pathContainer mb-1 text-left" v-if="!file.disabled">
-              <small>{{ file.path }}</small>
+              <small><p class="pathLimit">{{ file.path }}</p></small>
             </div>
             <div
               class="dropDown-Container"
@@ -148,6 +148,11 @@
       <!-- TODO -->
 
     </ul>
+    <div class="pagination d-inline-flex" v-if="$data[this.storageLocation].length > 0">
+      <button type="button" class="btn btn-outline-secondary paginationButton" @mousedown="prevPage()">&laquo; Prev</button>
+      <h6 class="mb-1 justify-content-center align-self-center ml-3 mr-3">Page {{$data.currentPage}} of {{Math.ceil($data.fileCount/100)}}</h6>
+      <button type="button" class="btn btn-outline-secondary paginationButton" @mousedown="nextPage()">Next &raquo;</button>
+    </div>
   </div>
 </template>
 
@@ -161,6 +166,7 @@ export default {
       [this.storageLocation]: [],
       blackFiles: [],
       whiteFiles: [],
+      currentPage: 1,
       selectionContainer: {
         hover: false,
         title: "No Selection",
@@ -550,6 +556,8 @@ export default {
       return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
     },
     clearFilters: function() {
+      this.$data.blackFiles = [];
+      this.$data.whiteFiles = [];
       this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
         file => {
           file.disabled = false;
@@ -557,27 +565,26 @@ export default {
         }
       );
     },
+    createMasterRegex: (regexArray = []) => new RegExp(regexArray.reduce((result, current) => result += `(${current.source})|`, '').slice(0, -1), 'gi'),
+    applyFilters: function() {
+      let blackRegex = this.createMasterRegex(this.$data.blackFiles);
+      let whiteRegex = this.createMasterRegex(this.$data.whiteFiles);
+      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(file => {
+        if (file.fileName.match(blackRegex) && this.$data.blackFiles.length > 0) file.disabled = true;
+        if (!(file.fileName.match(whiteRegex)) && this.$data.whiteFiles.length > 0) file.disabled = true;
+        return file;
+      })
+    },
     addBlackExt: function(ext) {
-      let regex = new RegExp(
-        `^.*\.(${ext.replace(".", "").toLowerCase()}|${ext
-          .replace(".", "")
-          .toUpperCase()})$`
+      let regex = new RegExp(`^.*\.(${ext.replace(".", "").toLowerCase()}|${ext.replace(".", "").toUpperCase()})$`
       );
-      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
-        file => {
-          if (file.fileName.match(regex)) file.disabled = true;
-          return file;
-        }
-      );
+      this.$data.blackFiles.push(regex);
+      this.applyFilters()
     },
     addBlackFile: function(file) {
       let regex = new RegExp(`${file}`);
-      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
-        file => {
-          if (file.fileName.match(regex)) file.disabled = true;
-          return file;
-        }
-      );
+      this.$data.blackFiles.push(regex);
+      this.applyFilters();
     },
     addWhiteExt: function(ext) {
       let regex = new RegExp(
@@ -585,12 +592,8 @@ export default {
           .replace(".", "")
           .toUpperCase()})$`
       );
-      this.$data[this.storageLocation] = this.$data[this.storageLocation].map(
-        file => {
-          if (!file.fileName.match(regex)) file.disabled = true;
-          return file;
-        }
-      );
+      this.$data.whiteFiles.push(regex);
+      this.applyFilters();
     },
     checkDir: function(checkPath) {
       ipcRenderer.send("checkDirEmpty", {
@@ -616,10 +619,11 @@ export default {
       this.$data.whiteFiles = [];
       this.$data.selectionContainer.title = "No Selection";
       this.$data.selectionContainer.path = "";
+      ipcRenderer.send('clearFiles', {id: this.storageLocation, dbID: this.storageLocation+ '_no_edit'});//Clear db.
+      ipcRenderer.send('clearFiles', {id: this.storageLocation, dbID: this.storageLocation+ '_edit'});//Clear db.
     },
-    onDirScanned(event, args) {
-      if (args.id !== this.storageLocation) return; //Not for us.
-      let updatedFiles = args.result.map(file => {
+    updateFiles: function(newFiles) {
+      let updatedFiles = newFiles.map(file => {
         file.hover = false;
         file.disabled = false;
         let extension = file.extension.replace(".", "").toLowerCase();
@@ -633,15 +637,19 @@ export default {
         };
         return file;
       });
-      this.$data.fileCount = args.count;
-      this.$data.fileSize = args.size;
       this.$data[this.storageLocation] = updatedFiles;
     },
-    onDirChecked(event, args) {
+    onDirScanned: function(event, args) {
+      if (args.id !== this.storageLocation) return; //Not for us.
+      this.updateFiles(args.result);
+      this.$data.fileCount = args.count;
+      this.$data.fileSize = args.size;
+    },
+    onDirChecked: function(event, args) {
       if (args.id !== this.storageLocation) return; //Not for us.
       console.log(args);
     },
-    onDirSelected(event, args) {
+    onDirSelected: function(event, args) {
       if (args.id !== this.storageLocation) return; //Not for us.
       if (args.canceled) return; //Got canceled.
       this.$data.selectionContainer.path = args.filePaths[0];
@@ -649,6 +657,35 @@ export default {
         /([^\\\\]*)\\*$/
       )[1];
       this.scanDir();
+    },
+    onFilesCollected: function(event, args) {
+      if(args.id !== this.storageLocation) return; //Not for us.
+      this.updateFiles(args.result);
+      this.applyFilters();
+    },
+    getFilter: function(event, args) {
+      args.id = this.storageLocation;
+      args.blackNames = this.$data.blackFiles;
+      args.whiteNames = this.$data.whiteFiles;
+      ipcRenderer.send('filters', args);
+    },
+    getItems: function(offSet) {
+      ipcRenderer.send('getFiles', {
+        id: this.storageLocation, //Our id
+        dbID: this.storageLocation + '_no_edit', //Db to get items from.
+        count: 100, //Get 100 items.
+        offset: offSet
+      })
+    },
+    prevPage: function() {
+      if (this.$data.currentPage === 1) return; //Check that the limit is alg.
+      this.$data.currentPage--; //Decrease current page limit by 1.
+      this.getItems(this.$data.currentPage * 100 - 100);
+    },
+    nextPage: function() { 
+      if (this.$data.currentPage === Math.ceil(this.$data.fileCount/100)) return; //Check that the limit is alg.
+      this.$data.currentPage++; //Increase current page by 1.
+      this.getItems(this.$data.currentPage * 100 - 100);
     }
   },
   beforeCreate() {
@@ -658,11 +695,15 @@ export default {
     ipcRenderer.on("dirScanned", this.onDirScanned);
     ipcRenderer.on("dirChecked", this.onDirChecked);
     ipcRenderer.on("dirSelected", this.onDirSelected);
+    ipcRenderer.on('filesCollected', this.onFilesCollected);  
+    ipcRenderer.on('getFilters', this.getFilter);
   },
   beforeDestroy() {
     ipcRenderer.off("dirScanned", this.onDirScanned);
     ipcRenderer.off("dirChecked", this.onDirChecked);
     ipcRenderer.off("dirSelected", this.onDirSelected);
+    ipcRenderer.off('filesCollected', this.onFilesCollected);
+    ipcRenderer.off('getFilters', this.getFilter);
   }
 };
 </script>
@@ -702,14 +743,11 @@ a {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
-.titleContainer {
-  width: 200px;
-  // padding: 3px;
-  // height: 1em;
-  overflow: hidden;
-  position: relative;
+.titleLimit {
   white-space: nowrap;
+  overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 88%;
 }
 .pathContainer {
   width: 500px;
@@ -720,6 +758,14 @@ a {
   position: relative;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.pathLimit {
+  direction: rtl;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80%;
 }
 .sizeIdentifier {
   white-space: nowrap;
@@ -777,5 +823,10 @@ li.active {
 }
 .disabled {
   cursor: default;
+}
+.paginationButton {
+  font-size: 0.8rem;
+  font-weight: bold;
+  // height: 3vh;
 }
 </style>

@@ -114,7 +114,8 @@ ipcMain.on("checkDirEmpty", (event, args) => {
     });
 });
 ipcMain.on('getFiles', (event, args) => { //Get files from database
-	//Args: id, dbID, start index, num items to collect.
+  //Args: id, dbID, start index, num items to collect.
+  console.log('Getting files')
 	database.getItems(args.dbID, args.count, args.offset).then(res => {
 		event.reply('filesCollected', {result: res, id: args.id})
 	}).catch(err => {
@@ -147,6 +148,7 @@ ipcMain.on('clearFiles', (event, args) => {
 ipcMain.on("scanDir", (event, args) => {
   console.log("Scanning dir");
   let databaseInfo, databaseItems;
+  database.clearTables(args.dbID);
   fileIndexer
 	.scan(args.parentDirectory, args.recursive, args.whiteNames, args.blackNames, args.recursionLimit, database.addFile, args.dbID)
 	.then(() => {
@@ -164,52 +166,61 @@ ipcMain.on("scanDir", (event, args) => {
       console.log(err);
     });
 });
-//Takes two arrays of files and copies them from their original locations to an output dir.
-ipcMain.on("mergeDirs", (event, args) => {
-  console.log("merging dir");
-  fileMerger
-    .merge(args.fileListA, args.fileListB, args.destPath)
-    .then(result => {
-      event.reply("filesMerged", true); //Responds with a true bool if succesfully merged.
-    })
-    .catch(err => {
-      event.reply("unknownErr", err);
-    });
-});
+
+let createMasterRegex = (regexArray = []) => new RegExp(regexArray.reduce((result, current) => result += `(${current.source})|`, '').slice(0, -1), 'gi');
+function applyFilters(whiteNames, blackNames, list) {
+	let blackRegex = createMasterRegex(blackNames);
+	let whiteRegex = createMasterRegex(whiteNames);
+	return list.filter(file => {
+		if (file.fileName.match(blackRegex) && blackNames.length > 0) return false;
+		if (!(file.fileName.match(whiteRegex)) && whiteNames.length > 0) return false;
+		return true;
+	})
+}
 
 //The merge button has been pressed. Broadcast back out in order to collect rank information.
 ipcMain.on('mergeFiles', (event, args) => {
   console.log('Button pressed');
   event.reply('mergeFiles', (event, args));
 });
-
+//Collect Filters.
+ipcMain.on('rankInfo', (event, args) => {
+	console.log('Getting filter info.');
+	filters = {};
+	event.reply('getFilters', (event, args))
+});
+let filters = {};
 //Takes two arrays of files and ranks them, merging them into one list. Depending on compare settings some files may be removed or renamed.
 //Also takes a 'rename or remove' bool. When true files will be renamed and need a rename setting object, otherwise needs a ranking object for settings.
-ipcMain.on('rankInfo', async (event, args) => {
-  console.log('Ranking dirs')
-	let { rename, renameSettings, ranks, path } = args;
-  let rankedFiles;
-  console.log(args);
-	try {
-    let listA = await database.getItems('ListA_no_edit'); //Get listA contents.
-    let listB = await database.getItems('ListB_no_edit'); //Get listB contents.
-		if (rename) {
-			rankedFiles = fileRanker.renameMerge(listA, listB, renameSettings);
-		} else {
-			rankedFiles = fileRanker.compareFiles(listA, listB, ranks);
-    }
-    console.log(rankedFiles)
-    await fileMerger
-      .merge(rankedFiles, path)
-      .then(res => {
-        event.reply('filesMerged', {});
-      });
-
-	} catch (err) {
-		event.reply('unknownErr', err);
-		console.log(err);
+//Also gets the required filters.
+ipcMain.on('filters', async (event, args) => {
+	console.log('Filter arriving.');
+	filters[args.id] = {
+		blackNames: args.blackNames,
+		whiteNames: args.whiteNames
+	}
+	if (Object.keys(filters).length === 2) { //Both filters have arrived.
+		console.log('Ranking dirs')
+		let { rename, renameSettings, ranks, path } = args;
+		let rankedFiles;
+		console.log(args);
+		try {
+		let listA = await database.getItems('ListA_no_edit').then(result => applyFilters(filters.ListA.whiteNames, filters.ListA.blackNames, result));
+		let listB = await database.getItems('ListB_no_edit').then(result => applyFilters(filters.ListB.whiteNames, filters.ListB.blackNames, result));
+		rankedFiles = (rename) ? fileRanker.renameMerge(listA, listB, renameSettings) : fileRanker.compareFiles(listA, listB, ranks);
+		// console.log(rankedFiles)visua
+		await fileMerger
+			.merge(rankedFiles, path)
+			.then(res => {
+				event.reply('filesMerged', {});
+			});
+		} catch (err) {
+			event.reply('unknownErr', err);
+			console.log(err);
+		}
 	}
 });
+
 
 //Opens search dialog.
 ipcMain.on("selectDir", (event, args) => {
