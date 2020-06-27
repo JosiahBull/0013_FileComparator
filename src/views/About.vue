@@ -9,7 +9,10 @@
         <scrollableList storageLocation="ListB"></scrollableList>
       </div>
       <div class="col-sm">
-        <rankerModule></rankerModule>
+        <div style="height:85vh; margin-bottom: 10px;" class="d-flex flex-column"> 
+          <rankerModule class="mb-auto"></rankerModule>
+          <actionButton></actionButton>
+        </div>
       </div>
       <!-- </div> -->
     </div>
@@ -17,25 +20,36 @@
 </template>
 
 <script>
-import scrollableList from "@/components/scrollableList.vue";
-import rankerModule from "@/components/rankerModule.vue";
+import scrollableList from '@/components/scrollableList.vue';
+import rankerModule from '@/components/rankerModule.vue';
+import actionButton from '@/components/actionButton.vue';
 import { ipcRenderer } from "electron";
 export default {
   name: "About",
   components: {
     scrollableList,
-    rankerModule
+    rankerModule,
+    actionButton
   },
   methods: {
     unknownErr: function(event, args) {
-      console.log(`An unknown error has occured: ${args}\n`);
+      console.log(`An unknown error has occured: ${JSON.stringify(args)}\n`);
+    },
+    filesMerged: function(event, args) {
+      console.log('Files have been succesfully merged.'); //TODO: trigger some event when this happens.
     }
   },
   mounted() {
     ipcRenderer.on("unknownErr", this.unknownErr);
+    ipcRenderer.on('filesMerged', this.filesMerged);
   },
   beforeDestroy() {
     ipcRenderer.off("unknownErr", this.unknownErr);
+    ipcRenderer.off('filesMerged', this.filesMerged);
   }
 };
 </script>
+<style scoped lang="scss">
+
+
+</style>

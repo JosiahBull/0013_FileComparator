@@ -4,7 +4,9 @@ const util = require("util");
 const readdirProm = util.promisify(fs.readdir);
 const getFileStatsProm = util.promisify(fs.stat);
 const dirCheck = require("./dirChecker.js");
-let counter = 0;
+
+let d = new Date();
+let counter = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
 
 function Batch(directory, recursive, whiteNames, blackNames, recursionLimit, currentRecursion, topParent, notifyCompletion, addQueue, err, dbPushFunc, dbId){
 	this.directory = directory;

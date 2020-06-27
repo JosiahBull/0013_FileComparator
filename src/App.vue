@@ -17,6 +17,9 @@
   color: #2c3e50;
 }
 
+body {
+  overflow: hidden;
+}
 #nav {
   padding: 30px;
 

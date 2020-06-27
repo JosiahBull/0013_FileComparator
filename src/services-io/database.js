@@ -17,16 +17,14 @@ function Database() {
     let dbRun = util.promisify(db.run.bind(db));
     this.tables = ['ListA_no_edit', 'ListA_edit', 'ListB_no_edit', 'ListB_edit', 'List_C'];
     
-    this.createTables = () => dbRun(this.tables.reduce((prev, current) => prev + `CREATE TABLE IF NOT EXISTS ${current} (id INTEGER PRIMARY KEY, path TEXT NOT NULL, originalPath TEXT NOT NULL, relativePath TEXT NOT NULL, fileName TEXT NOT NULL, renamed TEXT, extension TEXT, size INTEGER NOT NULL, changeTime INTEGER, accessTime INTEGER, creationTime INTERGER); `, '') + `CREATE TABLE IF NOT EXISTS config (placeHolder TEXT)`);
-
+    this.createTables = () => dbRun(this.tables.reduce((prev, current) => prev + `CREATE TABLE IF NOT EXISTS \`${current}\` (id INTEGER PRIMARY KEY, path TEXT NOT NULL, originalPath TEXT NOT NULL, relativePath TEXT NOT NULL, fileName TEXT NOT NULL, renamed TEXT, extension TEXT, size INTEGER NOT NULL, changeTime INTEGER, accessTime INTEGER, creationTime INTERGER); \n`, '') + `CREATE TABLE IF NOT EXISTS config (placeHolder TEXT);`);
     this.clearTables = (table) => { //Clear the specified table(s).
         if (!table) table = this.tables; //If null then clear all tables.
         if (!Array.isArray(table)) table = [table]; //Ensure is array, even if only single id provided.
         return dbRun(table.reduce((prev, current) => prev + `delete from ${current}; `, ''));
     }
-
     this.addFile = (fileObj, table) => dbRun(`INSERT INTO ${table} VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [fileObj.id, fileObj.path, fileObj.originalPath, fileObj.relativePath, fileObj.fileName, fileObj.renamed, fileObj.extension, fileObj.size, fileObj.changeTime, fileObj.accessTime, fileObj.creationTime]);
-    this.getItems = (table, itemCount = 500, offset = 0) => util.promisify(db.all.bind(db))(`SELECT * FROM ${table} LIMIT ${itemCount} OFFSET ${offset}`); //Get first x items from table.
+    this.getItems = (table, itemCount, offset) => util.promisify(db.all.bind(db))(`SELECT * FROM ${table}${(itemCount) ? ' LIMIT ' + itemCount : ''}${(offset) ? ' OFFSET' + offset : ''}`); //Get first x items from table
     this.getInfo = (table) => util.promisify(db.get.bind(db))(`SELECT SUM(size) as sizeSum, COUNT(*) as count FROM ${table}`); //Get info (size and count) of specified table.
     this.close = () => db.close();
     return this;

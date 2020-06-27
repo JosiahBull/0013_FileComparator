@@ -113,7 +113,7 @@ ipcMain.on("checkDirEmpty", (event, args) => {
       event.reply("unknownErr", err);
     });
 });
-ipcMain.on('getFiles', (event, args) => {
+ipcMain.on('getFiles', (event, args) => { //Get files from database
 	//Args: id, dbID, start index, num items to collect.
 	database.getItems(args.dbID, args.count, args.offset).then(res => {
 		event.reply('filesCollected', {result: res, id: args.id})
@@ -122,7 +122,7 @@ ipcMain.on('getFiles', (event, args) => {
 		event.reply('unkownErr', err);
 	})
 });
-ipcMain.on('writeFiles', (event, args) => {
+ipcMain.on('writeFiles', (event, args) => { //write files to db.
 	let files = args.files;
 	if (!Array.isArray(files)) files = [files];
 	Promise.resolve(files.map(file => {
@@ -176,32 +176,39 @@ ipcMain.on("mergeDirs", (event, args) => {
       event.reply("unknownErr", err);
     });
 });
+
+//The merge button has been pressed. Broadcast back out in order to collect rank information.
+ipcMain.on('mergeFiles', (event, args) => {
+  console.log('Button pressed');
+  event.reply('mergeFiles', (event, args));
+});
+
 //Takes two arrays of files and ranks them, merging them into one list. Depending on compare settings some files may be removed or renamed.
 //Also takes a 'rename or remove' bool. When true files will be renamed and need a rename setting object, otherwise needs a ranking object for settings.
-ipcMain.on("rank", (event, args) => {
-  console.log("ranking dir");
+ipcMain.on('rankInfo', async (event, args) => {
+  console.log('Ranking dirs')
+	let { rename, renameSettings, ranks, path } = args;
   let rankedFiles;
-  try {
-    if (args.rename) {
-      //Rename files and keep all.
-      rankedFiles = fileRanker.renameMerge(
-        args.fileListA,
-        args.fileListB,
-        args.settings
-      ); //Settings is expected to be a string for sorting. I.e. 'title', 'date' or 'num'.
-    } else {
-      //Merge files with ranking info.
-      rankedFiles = fileRanker.compareFiles(
-        args.fileListA,
-        args.fileListB,
-        args.settings
-      ); //Expects a sorting object. I.e. [['changeTime', true], ['size', true]] The bool being true means sort in ascending order.
+  console.log(args);
+	try {
+    let listA = await database.getItems('ListA_no_edit'); //Get listA contents.
+    let listB = await database.getItems('ListB_no_edit'); //Get listB contents.
+		if (rename) {
+			rankedFiles = fileRanker.renameMerge(listA, listB, renameSettings);
+		} else {
+			rankedFiles = fileRanker.compareFiles(listA, listB, ranks);
     }
-    rankedFiles.id = args.id;
-    event.reply("filesRanked", rankedFiles);
-  } catch (err) {
-    event.reply("unknownErr", err);
-  }
+    console.log(rankedFiles)
+    await fileMerger
+      .merge(rankedFiles, path)
+      .then(res => {
+        event.reply('filesMerged', {});
+      });
+
+	} catch (err) {
+		event.reply('unknownErr', err);
+		console.log(err);
+	}
 });
 
 //Opens search dialog.
@@ -215,13 +222,13 @@ ipcMain.on("selectDir", (event, args) => {
     })
     .then(result => {
       result.id = args.id;
-      result.id = args.id;
       event.reply("dirSelected", result);
     })
     .catch(err => {
       event.reply("unknownErr", err);
     });
 });
+
 
 // Exit cleanly on request from parent process in development mode.
 if (isDevelopment) {
@@ -241,10 +248,14 @@ if (isDevelopment) {
 //TODO: Create a seperate process for carrying out I/O Operations and whatnot to avoid freezing the main process.
 //TODO: Secure communication between processes. https://jaketrent.com/post/select-directory-in-electron/
 //TODO: Adjust Split Points on Grid so that they break reasonably as the user scales the webpage.
-//TODO: Update /services-io/fileIndexer.js to use a better scan method. Recursion uses quite a lot of memory. It would be better to
-//Scan a directory, add new directories to a queue, add files to result, and then scan the next directory in the queue.
-//A small database engine like sqllite might be ideal to hold and store these values. 
 //Consider using fast-glob to increase the speed of directory traversal: https://github.com/mrmlnc/fast-glob
 //More relevant info: https://stackoverflow.com/questions/35769834/nodejs-scanning-a-directory-tree-is-slow-as-hell
 //TODO: Consider using fs-extra to simplify things quite a lot: https://github.com/jprichardson/node-fs-extra#walk
 //TODO use vuex for storage and processing of data & components.
+
+//Make some sort of landing page.
+//Output to file.
+//properly rank files
+//Fix ui scaling & breakpoints
+//Add pagination
+//Add search

@@ -1,5 +1,5 @@
 <template>
-  <div class="rankContainer">
+  <div>
     <ul class="list-group">
       <li class="list-group-item">
         <div class="container">
@@ -7,8 +7,8 @@
             <h5 class="mb-1 nowrap">Merge Settings</h5>
             <small class="text-right limitTextBox">{{
               !$data.rename
-                ? "This will merge files, and when a collision is encountered they will be ranked and one file will be exlcuded."
-                : "This will push all files into the output directory, renaming as required."
+                ? "Ranked and one file will be exlcuded."
+                : "Rename as required."
             }}</small>
           </div>
           <div
@@ -66,7 +66,7 @@
             <div class="d-flex flex-column align-items-start col-1">
               <button
                 @mousedown="moveUp(index)"
-                class="sortingButton btn btn-outline-primary justify-content-center"
+                class="sortingButton btn btn-outline-secondary justify-content-center"
                 type="button"
                 @mouseover="rankSlot.upHover = true"
                 @mouseleave="rankSlot.upHover = false"
@@ -88,7 +88,7 @@
               </button>
               <button
                 @mousedown="moveDown(index)"
-                class="sortingButton btn btn-outline-primary justify-content-center"
+                class="sortingButton btn btn-outline-secondary justify-content-center"
                 type="button"
                 @mouseover="rankSlot.downHover = true"
                 @mouseleave="rankSlot.downHover = false"
@@ -117,6 +117,7 @@
 </template>
 
 <script>
+import { ipcRenderer } from 'electron';
 // import { ipcRenderer } from 'electron';
 function moveArrayItemToNewIndex(arr, old_index, new_index) {
   if (new_index >= arr.length) {
@@ -214,11 +215,17 @@ export default {
         index,
         index + 1
       );
+    },
+    onRankRequest(event, args) {
+      ipcRenderer.send('rankInfo', {rename: this.$data.rename, renameSettings: this.$data.renameSettings, ranks: this.$data.ranks, path: args.path});
     }
   },
-  beforeCreate() {},
-  mounted() {},
-  beforeDestroy() {},
+  mounted() {
+    ipcRenderer.on("mergeFiles", this.onRankRequest);
+  },
+  beforeDestroy() {
+    ipcRenderer.off('mergeFiles', this.onRankRequest);
+  },
   components: {}
 };
 </script>
