@@ -595,12 +595,6 @@ export default {
       this.$data.whiteFiles.push(regex);
       this.applyFilters();
     },
-    checkDir: function(checkPath) {
-      ipcRenderer.send("checkDirEmpty", {
-        parentDirectory: checkPath,
-        id: this.storageLocation
-      });
-    },
     scanDir: function() {
       let config = {
         id: this.storageLocation,
