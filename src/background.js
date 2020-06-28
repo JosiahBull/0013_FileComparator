@@ -12,7 +12,6 @@ const fileRanker = require("./services-io/fileRanker.js");
 const database = require('./services-io/database.js').Database();
 const path = require("path");
 const workerFarm = require('worker-farm');
-
 const fileIndexer = workerFarm('C:\\Users\\Josiah Bull\\OneDrive\\Apps\\0013_FileComparator\\src\\services-io\\fileIndexer.js');
 
 database.createTables()

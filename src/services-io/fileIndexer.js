@@ -74,7 +74,7 @@ function scan(parentDirectory, recursive = true, whiteNames = [], blackNames = [
 	return new Promise((res, rej) => {
 		let queue = [];
 		// let resultFile = [];
-		let maxConcurrentScanners = 200; //Arbitrary limit.
+		let maxConcurrentScanners = 50; //Arbitrary limit.
 		let currentScanners = 0;
 		let scannedCount = 0;
 		let processFromQueue = () => {

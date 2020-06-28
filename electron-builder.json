@@ -27,7 +27,8 @@
     },
     "files" : [
         "**/*",
-        "public/favicon.ico"
+        "public/favicon.ico",
+        "public/db/fileStore.db"
     ],
     "portable": {
       "artifactName": "EndFile.exe"

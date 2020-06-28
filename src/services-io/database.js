@@ -1,5 +1,6 @@
 const sqlite3 = require('sqlite3').verbose();
 const util = require('util');
+const path = require('path');
 //The goal of this file is to create and manage a databse of files for the program to scan and edit.
 //We are going to want to hold six tables.
 //Table 1 - List of files in directory one (uneditted)
@@ -16,8 +17,8 @@ function Database() {
     let db = new sqlite3.Database('./src/services-io/db/fileStore.db');
     let dbRun = util.promisify(db.run.bind(db));
     this.tables = ['ListA_no_edit', 'ListA_edit', 'ListB_no_edit', 'ListB_edit', 'List_C'];
-    
-    this.createTables = () => dbRun(this.tables.reduce((prev, current) => prev + `CREATE TABLE IF NOT EXISTS \`${current}\` (id INTEGER PRIMARY KEY, path TEXT NOT NULL, originalPath TEXT NOT NULL, relativePath TEXT NOT NULL, fileName TEXT NOT NULL, renamed TEXT, extension TEXT, size INTEGER NOT NULL, changeTime INTEGER, accessTime INTEGER, creationTime INTERGER); \n`, '') + `CREATE TABLE IF NOT EXISTS config (placeHolder TEXT);`);
+    db.configure("busyTimeout", 10000);
+    this.createTables = () => util.promisify(db.exec.bind(db))(this.tables.reduce((prev, current) => prev + `CREATE TABLE IF NOT EXISTS \`${current}\` (id INTEGER PRIMARY KEY, path TEXT NOT NULL, originalPath TEXT NOT NULL, relativePath TEXT NOT NULL, fileName TEXT NOT NULL, renamed TEXT, extension TEXT, size INTEGER NOT NULL, changeTime INTEGER, accessTime INTEGER, creationTime INTERGER); \n`, '') + `CREATE TABLE IF NOT EXISTS config (placeHolder TEXT);`);
     this.clearTables = (table) => { //Clear the specified table(s).
         if (!table) table = this.tables; //If null then clear all tables.
         if (!Array.isArray(table)) table = [table]; //Ensure is array, even if only single id provided.
