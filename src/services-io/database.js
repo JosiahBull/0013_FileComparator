@@ -13,8 +13,14 @@ const path = require('path');
 //We need to be able to clear, add, remove, and update from all of these tables as required.
 //We should use the fileIDs from windows as our primary key (I mean why not right? Someone else has already done that work lets piggy back).
 
+const isBuild = process.env.NODE_ENV === 'production'
+const pathToDbFile = path.join(
+    isBuild ? __dirname : __static,
+    '../src/database.txt',
+  );
+
 function Database() {
-    let db = new sqlite3.Database('./src/services-io/db/fileStore.db');
+    let db = new sqlite3.Database(pathToDbFile);
     let dbRun = util.promisify(db.run.bind(db));
     this.tables = ['ListA_no_edit', 'ListA_edit', 'ListB_no_edit', 'ListB_edit', 'List_C'];
     db.configure("busyTimeout", 10000);

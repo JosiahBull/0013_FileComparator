@@ -18,9 +18,7 @@
     "win": {
       "target": [
         "portable",
-        "msi",
-        "nsis",
-        "squirrel"
+        "msi"
       ],
       "icon": "/public/favicon.ico",
       "publisherName": "Josiah Bull"
