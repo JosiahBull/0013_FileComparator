@@ -25,9 +25,9 @@ function mergeFiles(fileList = [], outputDir = "") {
       )
         .then(() => {
           //Copy each file.
-          console.log(
-            `File: ${file.fileName} copied from ${file.path} to ${outputDir} succesfully.`
-          );
+          // console.log(
+          //   `File: ${file.fileName} copied from ${file.path} to ${outputDir} succesfully.`
+          // );
         })
         .catch(err => {
           console.log(
