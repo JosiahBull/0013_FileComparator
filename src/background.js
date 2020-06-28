@@ -47,7 +47,9 @@ function createWindow() {
       enableRemoteModule: true
     }
   });
-
+  win.removeMenu();
+  console.log(path.join(__dirname, "/assets/logo.ico"));
+  
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
     win.loadURL(process.env.WEBPACK_DEV_SERVER_URL);
