@@ -19,8 +19,13 @@
     "core-js": "^3.6.5",
     "electron-builder-squirrel-windows": "^22.7.0",
     "file-icon-vectors": "^1.0.0",
+    "jquery": "^3.5.1",
+    "mini-toastr": "^0.8.1",
     "sqlite3": "^4.2.0",
+    "toastr": "^2.1.4",
     "vue": "^2.6.11",
+    "vue-clipboard2": "^0.3.1",
+    "vue-notifications": "^1.0.2",
     "vue-router": "^3.2.0",
     "vuex": "^3.4.0",
     "worker-farm": "^1.7.0"

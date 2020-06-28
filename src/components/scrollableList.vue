@@ -31,7 +31,7 @@
               class="pathContainer mb-1 text-left"
               v-if="$data.selectionContainer.path.length > 0"
             >
-              <small>{{ $data.selectionContainer.path }}</small>
+              <small><p class="pathLimit" v-b-tooltip.delay="{ show: 3000, hide: 200 }" v-b-tooltip.hover title="Click to Copy!" v-clipboard:copy="$data.selectionContainer.path" v-clipboard:success="onCopy" v-clipboard:error="onCopyError">{{ $data.selectionContainer.path }}</p></small>
             </div>
             <div
               class="dropDown-Container"
@@ -98,7 +98,7 @@
               <small class="sizeIdentifier">{{ fileSizer(file.size) }}</small>
             </div>
             <div class="pathContainer mb-1 text-left" v-if="!file.disabled">
-              <small><p class="pathLimit">{{ file.path }}</p></small>
+              <small><p class="pathLimit" v-b-tooltip.hover delay="1000" title="Click to Copy!" v-clipboard:copy="file.path" v-clipboard:success="onCopy" v-clipboard:error="onCopyError">{{ file.path }}</p></small>
             </div>
             <div
               class="dropDown-Container"
@@ -550,6 +550,12 @@ export default {
     }
   },
   methods: {
+    onCopyError: function() {
+      this.showErrorMsg({title: 'Copy Error', message: 'Error Copying'})
+    },
+    onCopy: function() {
+      this.showInfoMsg({title: 'Copied', message: 'Copied to clipboard'});
+    },
     fileSizer: function(bytes, decimals = 1) {
       if (bytes === 0) return "0 Bytes";
       let k = 1024;
@@ -567,6 +573,7 @@ export default {
           return file;
         }
       );
+      this.showInfoMsg({message: "Filters Cleared"})
     },
     createMasterRegex: (regexArray = []) => new RegExp(regexArray.reduce((result, current) => result += `(${current.source})|`, '').slice(0, -1), 'gi'),
     applyFilters: function() {
@@ -583,11 +590,13 @@ export default {
       );
       this.$data.blackFiles.push(regex);
       this.applyFilters()
+      this.showInfoMsg({message: "Added Filter"});
     },
     addBlackFile: function(file) {
       let regex = new RegExp(`${file}`);
       this.$data.blackFiles.push(regex);
       this.applyFilters();
+      this.showInfoMsg({message: "Added Filter"});
     },
     addWhiteExt: function(ext) {
       let regex = new RegExp(
@@ -597,6 +606,7 @@ export default {
       );
       this.$data.whiteFiles.push(regex);
       this.applyFilters();
+      this.showInfoMsg({message: "Added Filter"});
     },
     scanDir: function() {
       let config = {
@@ -606,6 +616,7 @@ export default {
       };
       this.$data.scanning = true;
       ipcRenderer.send("scanDir", config);
+      this.showInfoMsg({title: "Scanning Directory", message: "This takes time, get some tea. :)"})
     },
     selectDir: function(title) {
       if (title === undefined) title = "Select a directory to load: ";
@@ -621,11 +632,13 @@ export default {
       this.$data.selectionContainer.path = "";
       ipcRenderer.send('clearFiles', {id: this.storageLocation, dbID: this.storageLocation+ '_no_edit'});//Clear db.
       ipcRenderer.send('clearFiles', {id: this.storageLocation, dbID: this.storageLocation+ '_edit'});//Clear db.
+      this.showInfoMsg({message: "Selection cleared succesfully!"});
     },
     updateFiles: function(newFiles) {
       let updatedFiles = newFiles.map(file => {
         file.hover = false;
         file.disabled = false;
+        file.scrollPercent = 80;
         let extension = file.extension.replace(".", "").toLowerCase();
         file.icon = {
           normal: this.$data.availableIcons.includes(extension)
@@ -645,6 +658,7 @@ export default {
       this.updateFiles(args.result);
       this.$data.fileCount = args.count;
       this.$data.fileSize = args.size;
+      this.showInfoMsg({message: "Files scanned successfully!"});
     },
     onDirChecked: function(event, args) {
       if (args.id !== this.storageLocation) return; //Not for us.
@@ -687,6 +701,28 @@ export default {
       if (this.$data.currentPage === Math.ceil(this.$data.fileCount/100)) return; //Check that the limit is alg.
       this.$data.currentPage++; //Increase current page by 1.
       this.getItems(this.$data.currentPage * 100 - 100);
+    },
+  },
+  notifications: {
+    showSuccessMsg: {
+      type: 'success',
+      title: 'Success!',
+      message: 'The requested action has been performed.'
+    },
+    showInfoMsg: {
+      type: 'info',
+      title: 'Information',
+      message: 'Here is some info for you.'
+    },
+    showWarnMsg: {
+      type: 'warn',
+      title: 'Warning!',
+      message: 'This action may cause problems.'
+    },
+    showErrorMsg: {
+      type: 'error',
+      title: 'Unknown Error!',
+      message: 'That action caused an error.'
     }
   },
   beforeCreate() {
@@ -751,23 +787,30 @@ a {
   max-width: 88%;
 }
 .pathContainer {
-  width: 500px;
-  // margin: 0;
-  // padding: 3px;
-  // height: 1em;
+  width: 100%;
+  box-sizing: border-box;
   overflow: hidden;
-  position: relative;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  cursor: pointer;
 }
 .pathLimit {
   direction: rtl;
   text-align: left;
   white-space: nowrap;
+  position: relative;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 80%;
+  width: 100%;
+  left: 0%;
+  /* Tweak 'till your heart's content */
+  transition: right 3s 0.5s ease-in-out, width 3s 0.5s ease-in-out;
+  transition-delay: 0.5s;
 }
+.pathContainer:hover .pathLimit {
+  /* This is not completely accurate. It resizes to 2x the current width. */
+  right: -200%;
+  width: 300%;
+}
+
 .sizeIdentifier {
   white-space: nowrap;
 }

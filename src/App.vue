@@ -7,7 +7,25 @@
     <router-view />
   </div>
 </template>
-
+<script>
+import { ipcRenderer } from "electron";
+export default {
+  name: "App",
+  components: {
+  },
+  methods: {
+    unknownErr: function(event, args) {
+      console.log(`An unknown error has occured: ${JSON.stringify(args)}\n`);
+    }
+  },
+  mounted() {
+    ipcRenderer.on("unknownErr", this.unknownErr);
+  },
+  beforeDestroy() {
+    ipcRenderer.off("unknownErr", this.unknownErr);
+  }
+}
+</script>
 <style lang="scss">
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;

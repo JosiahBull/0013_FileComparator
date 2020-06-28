@@ -32,22 +32,28 @@ export default {
     actionButton
   },
   methods: {
-    unknownErr: function(event, args) {
-      console.log(`An unknown error has occured: ${JSON.stringify(args)}\n`);
-    },
     filesMerged: function(event, args) {
-      console.log('Files have been succesfully merged.'); //TODO: trigger some event when this happens.
+      this.showSuccessMsg({
+        title: 'Files merged!',
+        message: 'Files have been successfully merged.'
+      })
+    }
+  },
+  notifications: {
+    showSuccessMsg: {
+      type: 'success',
+      title: 'Success!',
+      message: 'The requested action has been performed.'
     }
   },
   mounted() {
-    ipcRenderer.on("unknownErr", this.unknownErr);
     ipcRenderer.on('filesMerged', this.filesMerged);
   },
   beforeDestroy() {
-    ipcRenderer.off("unknownErr", this.unknownErr);
     ipcRenderer.off('filesMerged', this.filesMerged);
   }
 };
+
 </script>
 <style scoped lang="scss">
 
