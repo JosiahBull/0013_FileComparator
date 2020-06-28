@@ -48,7 +48,6 @@ function createWindow() {
     }
   });
   win.removeMenu();
-  console.log(path.join(__dirname, "/assets/logo.ico"));
   
   if (process.env.WEBPACK_DEV_SERVER_URL) {
     // Load the url of the dev server if in development mode
@@ -59,10 +58,13 @@ function createWindow() {
     // Load the index.html when not in development
     win.loadURL("app://./index.html");
   }
-
+  
   win.on("closed", () => {
     win = null;
   });
+  win.webContents.on('did-finish-load', () => {
+	win.setTitle('EndFile');
+  })
 }
 
 // Quit when all windows are closed.
