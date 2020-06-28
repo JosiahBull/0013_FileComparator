@@ -73,10 +73,8 @@
       </li>
       <!-- List Divider -->
       <li>
-        <div
-          style="height:3px; background-color:rgba(19, 20, 79, .4); width:100%"
-          v-if="$data.selectionContainer.path.length > 0"
-        ></div>
+        <div style="background-color:rgba(19, 20, 79, .4); width: 100%; height: 3px; margin: 0px; padding: 0px;" v-if="!$data.scanning" class="listDivider"></div>
+        <b-progress style="height: 6px; margin: 0px; padding: 0px;" :value="value" :max="max" class="listDivider" v-if="$data.scanning" animated></b-progress>
       </li>
 
       <li
@@ -140,7 +138,7 @@
       <li>
         <div
           style="height:3px; background-color:rgba(19, 20, 79, .4); width:100%"
-          v-if="$data.selectionContainer.path.length > 0"
+          v-if="$data.selectionContainer.path.length > 0 && !$data.scanning"
         ></div>
       </li>
 
@@ -165,8 +163,13 @@ export default {
     return {
       [this.storageLocation]: [],
       blackFiles: [],
+      scanning: false,
+      value: 1,
+      max: 1,
       whiteFiles: [],
       currentPage: 1,
+      fileSize: 0,
+      fileCount: 0,
       selectionContainer: {
         hover: false,
         title: "No Selection",
@@ -601,6 +604,7 @@ export default {
         dbID: this.storageLocation + '_no_edit',
         parentDirectory: this.$data.selectionContainer.path
       };
+      this.$data.scanning = true;
       ipcRenderer.send("scanDir", config);
     },
     selectDir: function(title) {
@@ -611,6 +615,8 @@ export default {
       this.$data[this.storageLocation] = [];
       this.$data.blackFiles = [];
       this.$data.whiteFiles = [];
+      this.$data.fileSize = 0;
+      this.$data.fileCount = 0;
       this.$data.selectionContainer.title = "No Selection";
       this.$data.selectionContainer.path = "";
       ipcRenderer.send('clearFiles', {id: this.storageLocation, dbID: this.storageLocation+ '_no_edit'});//Clear db.
@@ -635,6 +641,7 @@ export default {
     },
     onDirScanned: function(event, args) {
       if (args.id !== this.storageLocation) return; //Not for us.
+      this.$data.scanning = false;
       this.updateFiles(args.result);
       this.$data.fileCount = args.count;
       this.$data.fileSize = args.size;
