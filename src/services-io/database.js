@@ -16,7 +16,7 @@ const path = require('path');
 const isBuild = process.env.NODE_ENV === 'production'
 const pathToDbFile = path.join(
     isBuild ? __dirname : __static,
-    '../src/database.txt',
+    '../src/services-io/db/fileStore.db',
   );
 
 function Database() {
